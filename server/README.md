@@ -26,6 +26,14 @@ uvicorn app.main:app --reload --port 8000
 - `GET /api/v1/pipeline/{run_id}/status`
 - `GET /health`
 
+## Run Tests
+
+```bash
+pytest
+```
+
+The tests cover health, ingest, pipeline start/status progression, and not-found errors.
+
 ## Manual QA Checklist
 
 1. Start server and confirm `GET /health` returns `{"status":"ok"}`.
