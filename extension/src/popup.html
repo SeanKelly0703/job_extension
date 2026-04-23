@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Job Scraper</title>
+    <style>
+      :root {
+        --bg: #f4f6fb;
+        --surface: #ffffff;
+        --text: #121826;
+        --muted: #6b7280;
+        --border: #d8dce6;
+        --accent: #2563eb;
+        --accent-strong: #1e4fcc;
+        --success-bg: #eafaf1;
+        --success-text: #0b6b35;
+        --error-bg: #fdecec;
+        --error-text: #b42318;
+      }
+
+      body.dark {
+        --bg: #0f172a;
+        --surface: #111827;
+        --text: #e5e7eb;
+        --muted: #94a3b8;
+        --border: #334155;
+        --accent: #3b82f6;
+        --accent-strong: #2563eb;
+        --success-bg: #0f2f1f;
+        --success-text: #86efac;
+        --error-bg: #3a1114;
+        --error-text: #fda4af;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        width: 390px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Segoe UI", Arial, sans-serif;
+      }
+
+      .app {
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      h3 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .muted { color: var(--muted); font-size: 12px; }
+
+      .row {
+        display: flex;
+        gap: 8px;
+      }
+
+      label {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      input, textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: var(--text);
+        border-radius: 8px;
+        padding: 8px 10px;
+      }
+
+      textarea {
+        min-height: 170px;
+        resize: vertical;
+      }
+
+      .btn {
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 8px 10px;
+        cursor: pointer;
+        font-size: 12px;
+      }
+
+      .btn:hover { border-color: var(--accent); }
+      .btn.primary {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+
+      .status {
+        margin-top: 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        white-space: pre-wrap;
+        border: 1px solid transparent;
+      }
+      .status.info {
+        background: transparent;
+        color: var(--muted);
+        border-color: var(--border);
+      }
+      .status.success {
+        background: var(--success-bg);
+        color: var(--success-text);
+      }
+      .status.error {
+        background: var(--error-bg);
+        color: var(--error-text);
+      }
+
+      .footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 8px;
+      }
+
+      .pill {
+        font-size: 11px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 3px 8px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="card header">
+        <div>
+          <h3>Job Description Scraper</h3>
+          <div class="muted">Auto-detect and submit quickly</div>
+        </div>
+        <button id="themeToggle" class="btn" title="Toggle theme">Dark</button>
+      </div>
+
+      <div class="card">
+        <label for="apiBase">API Base URL</label>
+        <div class="row">
+          <input id="apiBase" type="text" placeholder="http://127.0.0.1:8000" />
+          <button id="saveApi" class="btn">Save</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <button id="extractBtn" class="btn">Extract</button>
+          <button id="sendBtn" class="btn primary">Send</button>
+        </div>
+        <label for="description" style="margin-top: 10px;">Job Description</label>
+        <textarea id="description" placeholder="Extracted job description will appear here..."></textarea>
+        <div class="footer">
+          <span id="charCount" class="pill">0 chars</span>
+          <span class="muted">Review before sending</span>
+        </div>
+        <div id="status" class="status info">Ready.</div>
+      </div>
+    </div>
+    <script src="./popup.js"></script>
+  </body>
+</html>
