@@ -20,8 +20,7 @@ def _valid_ingest_payload() -> dict:
 
 
 def setup_function() -> None:
-    pipeline_service.jobs.clear()
-    pipeline_service.runs.clear()
+    pipeline_service.reset()
 
 
 def test_health_endpoint() -> None:
@@ -43,6 +42,28 @@ def test_ingest_job_returns_accepted_payload() -> None:
         "ats_threshold": 80,
         "iteration": 0,
     }
+
+
+def test_list_jobs_returns_latest_first_with_limit() -> None:
+    payload_one = _valid_ingest_payload()
+    payload_one["page_title"] = "Older role"
+    payload_one["source_url"] = "https://www.linkedin.com/jobs/view/111"
+    payload_one["source_site"] = "linkedin.com"
+    client.post("/api/v1/jobs/ingest", json=payload_one)
+
+    payload_two = _valid_ingest_payload()
+    payload_two["page_title"] = "Newest role"
+    payload_two["source_url"] = "https://www.indeed.com/jobs/view/222"
+    payload_two["source_site"] = "indeed.com"
+    client.post("/api/v1/jobs/ingest", json=payload_two)
+
+    response = client.get("/api/v1/jobs?limit=1")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["page_title"] == "Newest role"
+    assert data["items"][0]["source_site"] == "indeed.com"
 
 
 def test_start_pipeline_requires_resume_input() -> None:

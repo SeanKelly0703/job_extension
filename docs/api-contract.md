@@ -2,6 +2,31 @@
 
 Base URL: `http://127.0.0.1:8000`
 
+## GET `/api/v1/jobs`
+
+Returns recently ingested jobs in descending `created_at` order.
+
+### Query Params
+
+- `limit` (optional): integer from `1` to `100`, default `20`.
+
+### Response (200)
+
+```json
+{
+  "items": [
+    {
+      "job_id": "job_abc123def456",
+      "source_url": "https://www.linkedin.com/jobs/view/123",
+      "page_title": "Software Engineer - Example Corp",
+      "source_site": "linkedin.com",
+      "created_at": "2026-04-23T10:00:02.120532+00:00"
+    }
+  ],
+  "count": 1
+}
+```
+
 ## POST `/api/v1/jobs/ingest`
 
 Accepts scraped job description payload from the extension.

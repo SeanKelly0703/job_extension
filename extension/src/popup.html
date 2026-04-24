@@ -149,6 +149,85 @@
         padding: 3px 8px;
         color: var(--muted);
       }
+
+      .recent-jobs {
+        margin-top: 10px;
+        border-top: 1px solid var(--border);
+        padding-top: 10px;
+      }
+
+      .recent-jobs-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .recent-jobs-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .recent-job-item {
+        width: 100%;
+        text-align: left;
+        font-size: 12px;
+      }
+
+      .recent-job-title {
+        display: block;
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .recent-job-meta {
+        display: block;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+
+      .facts-panel {
+        margin-top: 10px;
+        margin-bottom: 2px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px;
+        background: color-mix(in srgb, var(--surface) 92%, var(--bg) 8%);
+      }
+
+      .facts-panel-title {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        margin-bottom: 8px;
+        color: var(--text);
+      }
+
+      .facts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 10px;
+      }
+
+      .facts-item {
+        min-width: 0;
+      }
+
+      .facts-label {
+        display: block;
+        font-size: 11px;
+        color: var(--muted);
+        margin-bottom: 2px;
+      }
+
+      .facts-value {
+        display: block;
+        font-size: 12px;
+        color: var(--text);
+        word-break: break-word;
+      }
+
     </style>
   </head>
   <body>
@@ -162,7 +241,7 @@
       </div>
 
       <div class="card">
-        <label for="apiBase">API Base URL</label>
+        <label for="apiBase">API URL</label>
         <div class="row">
           <input id="apiBase" type="text" placeholder="http://127.0.0.1:8000" />
           <button id="saveApi" class="btn">Save</button>
@@ -172,7 +251,29 @@
       <div class="card">
         <div class="row">
           <button id="extractBtn" class="btn">Extract</button>
+          <button id="extractFactsBtn" class="btn">Extract via ChatGPT</button>
           <button id="sendBtn" class="btn primary">Send</button>
+        </div>
+        <div id="factsPanel" class="facts-panel">
+          <div class="facts-panel-title">From ChatGPT</div>
+          <div class="facts-grid">
+            <div class="facts-item">
+              <span class="facts-label">Job Title</span>
+              <span id="factJobTitle" class="facts-value">Not found</span>
+            </div>
+            <div class="facts-item">
+              <span class="facts-label">Company</span>
+              <span id="factCompany" class="facts-value">Not found</span>
+            </div>
+            <div class="facts-item">
+              <span class="facts-label">Salary</span>
+              <span id="factSalary" class="facts-value">Not found</span>
+            </div>
+            <div class="facts-item">
+              <span class="facts-label">Location</span>
+              <span id="factLocation" class="facts-value">Not found</span>
+            </div>
+          </div>
         </div>
         <label for="description" style="margin-top: 10px;">Job Description</label>
         <textarea id="description" placeholder="Extracted job description will appear here..."></textarea>
@@ -181,6 +282,13 @@
           <span class="muted">Review before sending</span>
         </div>
         <div id="status" class="status info">Ready.</div>
+        <div class="recent-jobs">
+          <div class="recent-jobs-header">
+            <span class="muted">Recent Jobs</span>
+            <button id="refreshRecentBtn" class="btn">Refresh</button>
+          </div>
+          <div id="recentJobsList" class="recent-jobs-list muted">No recent jobs yet.</div>
+        </div>
       </div>
     </div>
     <script src="./popup.js"></script>

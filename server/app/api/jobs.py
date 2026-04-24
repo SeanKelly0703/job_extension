@@ -1,6 +1,12 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
-from app.schemas.job import JobIngestRequest, JobIngestResponse, PipelineStatusSnapshot
+from app.schemas.job import (
+    JobIngestRequest,
+    JobIngestResponse,
+    JobListResponse,
+    JobSummary,
+    PipelineStatusSnapshot,
+)
 from app.schemas.pipeline import (
     PipelineStartRequest,
     PipelineStartResponse,
@@ -11,9 +17,25 @@ from app.services.pipeline_service import pipeline_service
 router = APIRouter(prefix="/api/v1", tags=["jobs"])
 
 
+@router.get("/jobs", response_model=JobListResponse)
+def list_jobs(limit: int = Query(default=20, ge=1, le=100)) -> JobListResponse:
+    records = pipeline_service.list_jobs(limit=limit)
+    items = [
+        JobSummary(
+            job_id=record.id,
+            source_url=record.source_url,
+            page_title=record.page_title,
+            source_site=record.source_site,
+            created_at=record.created_at,
+        )
+        for record in records
+    ]
+    return JobListResponse(items=items, count=len(items))
+
+
 @router.post("/jobs/ingest", response_model=JobIngestResponse, status_code=status.HTTP_201_CREATED)
 def ingest_job(request: JobIngestRequest) -> JobIngestResponse:
-    job = pipeline_service.ingest_job(request.model_dump())
+    job = pipeline_service.ingest_job(request.model_dump(mode="json"))
     return JobIngestResponse(
         job_id=job.id,
         status="accepted",

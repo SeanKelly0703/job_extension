@@ -21,6 +21,7 @@ uvicorn app.main:app --reload --port 8000
 
 ## Implemented Endpoints
 
+- `GET /api/v1/jobs`
 - `POST /api/v1/jobs/ingest`
 - `POST /api/v1/pipeline/{job_id}/start`
 - `GET /api/v1/pipeline/{run_id}/status`
@@ -46,6 +47,6 @@ The tests cover health, ingest, pipeline start/status progression, and not-found
 
 ## Current Limitations
 
-- In-memory storage only (no database yet).
+- SQLite persistence only (no external database yet).
 - Pipeline logic is deterministic mock behavior.
 - No PDF export in Phase 1.

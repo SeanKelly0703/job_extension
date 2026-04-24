@@ -24,3 +24,16 @@ class JobIngestResponse(BaseModel):
     status: str
     pipeline_status: PipelineStatusSnapshot
     created_at: datetime
+
+
+class JobSummary(BaseModel):
+    job_id: str
+    source_url: str
+    page_title: str
+    source_site: str
+    created_at: datetime
+
+
+class JobListResponse(BaseModel):
+    items: list[JobSummary]
+    count: int
