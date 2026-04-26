@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Tailored Resume</title>
+  <style>
+    @page { size: A4; margin: 14mm; }
+    body {
+      font-family: "Bodoni MT", Didot, "Garamond", "Times New Roman", serif;
+      color: #111;
+      margin: 0;
+      background: #fff;
+      font-size: 10px;
+      line-height: 1.36;
+    }
+    .resume-root {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 8mm 10mm;
+    }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1;
+      font-weight: 700;
+      text-align: center;
+    }
+    .headline {
+      margin: 4px auto 4px;
+      color: #1f1f1f;
+      text-align: center;
+      font-style: italic;
+      font-size: 17px;
+      line-height: 1.1;
+      max-width: 98%;
+    }
+    .contact-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 11px;
+      justify-content: center;
+      margin-bottom: 2px;
+      font-size: 10px;
+      align-items: center;
+    }
+    .contact-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .contact-icon {
+      font-weight: 700;
+      font-size: 10px;
+      min-width: 10px;
+      text-align: center;
+    }
+    .contact-icon.linkedin-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 11px;
+      height: 11px;
+      border: 1px solid #111;
+      border-radius: 1px;
+      font-size: 8px;
+      line-height: 1;
+      font-weight: 700;
+      min-width: 11px;
+    }
+    .contact-address {
+      text-align: center;
+      margin-bottom: 7px;
+      font-size: 10px;
+    }
+    h2 {
+      margin: 12px 0 5px;
+      font-size: 14px;
+      font-weight: 700;
+      border-bottom: 1px solid #222;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      line-height: 1.05;
+    }
+    .entry {
+      margin-bottom: 10px;
+      page-break-inside: avoid;
+    }
+    .entry-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+    }
+    .entry-title {
+      font-weight: 700;
+      font-size: 11px;
+      line-height: 1.1;
+    }
+    .entry-meta {
+      color: #2f2f2f;
+      font-size: 10px;
+      white-space: nowrap;
+      line-height: 1.1;
+    }
+    ul {
+      margin: 4px 0 0 9px;
+      padding: 0;
+    }
+    li {
+      margin-bottom: 3px;
+      line-height: 1.3;
+    }
+    p {
+      margin: 0 0 5px;
+      line-height: 1.3;
+    }
+    .skills { display: block; }
+    .skill {
+      display: inline;
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      font-size: 10px;
+    }
+    .skill:not(:last-child)::after { content: ", "; }
+    .summary-block, .section-block { margin-top: 0; margin-bottom: 4px; }
+    .summary-block p,
+    .section-block p,
+    .section-block li {
+      text-align: justify;
+      text-justify: inter-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="resume-root">
+    <h1>{{FULL_NAME}}</h1>
+    <div class="headline">{{HEADLINE}}</div>
+    <div class="contact-row">
+      <span class="contact-item"><span class="contact-icon">✉</span><span>{{EMAIL}}</span></span>
+      <span class="contact-item"><span class="contact-icon linkedin-badge">in</span><span>{{LINKEDIN}}</span></span>
+      <span class="contact-item"><span class="contact-icon">☎</span><span>{{PHONE}}</span></span>
+    </div>
+    <div class="contact-address"><span class="contact-icon">◆</span> {{ADDRESS}}</div>
+
+    <section id="profile-section">
+      <h2>Profile</h2>
+      <div class="summary-block">{{PROFILE}}</div>
+    </section>
+
+    <section id="experience-section">
+      <h2>Professional Experience</h2>
+      <div class="section-block">{{EXPERIENCE}}</div>
+    </section>
+
+    <section id="projects-section">
+      <h2>Projects</h2>
+      <div class="section-block">{{PROJECTS}}</div>
+    </section>
+
+    <section id="skills-section">
+      <h2>Skills</h2>
+      <div class="skills section-block">{{SKILLS}}</div>
+    </section>
+
+    <section id="soft-skills-section">
+      <h2>Soft Skills</h2>
+      <div class="skills section-block">{{SOFT_SKILLS}}</div>
+    </section>
+
+    <section id="languages-section">
+      <h2>Languages</h2>
+      <div class="skills section-block">{{LANGUAGES}}</div>
+    </section>
+
+    <section id="education-section">
+      <h2>Education</h2>
+      <div class="section-block">{{EDUCATION}}</div>
+    </section>
+  </div>
+</body>
+</html>

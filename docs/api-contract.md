@@ -114,3 +114,9 @@ Stop rule in contract: server marks run `completed` when `ats_score >= ats_thres
 
 - `404` if `job_id` or `run_id` does not exist.
 - `422` for schema validation failures or missing resume inputs on pipeline start.
+
+## Resume Tailoring (Current Scope)
+
+- Resume tailoring is currently handled in the browser extension using chatgpt.com automation.
+- Tailored resume output is exported locally via the browser print flow (PDF).
+- There is currently no backend upload endpoint for tailored resume PDFs in this phase.

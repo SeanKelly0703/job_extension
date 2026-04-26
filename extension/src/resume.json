@@ -1,0 +1,89 @@
+{
+  "name": "Angelo Lacson",
+  "address": "Santo Tomas, Pampanga, Philippines",
+  "email": "angelo.lacson.work0407@gmail.com",
+  "linkedin_address": "https://www.linkedin.com/in/angelo-lacson-81808b3b6/",
+  "phone_number": "+639690513850",
+  "profile": [
+    "Senior Full-Stack Engineer with 8+ years of experience building high-performance SaaS platforms and modern web applications, specializing in React, TypeScript, Next.js, and distributed backend services. Designed and delivered production frontend systems used by thousands of enterprise users, creating highly responsive dashboards, data visualization interfaces, and real-time analytics platforms. Engineered scalable backend APIs and eventdriven services supporting 50M+ daily transactions across cloud-native environments. Track record of improving platform performance, including 45% faster API response times, 2× system throughput improvements, and frontend rendering speed increases of up to 35% through optimized state management, SSR architecture, and distributed system design. Experienced across modern frontend ecosystems (React, Angular, Vue, Next.js) and cloud platforms (AWS, Kubernetes) while collaborating closely with product, data, and ML teams to deliver reliable production systems."
+  ],
+  "professional experience": [
+    {
+      "company name": "Tecton",
+      "role": "Senior Full-Stack Engineer",
+      "period": "Aug 2023 – Jan 2026 ",
+      "experience": [
+        "Engineered React + TypeScript platform interfaces used by 200+ ML engineers to configure feature pipelines, inspect feature freshness, and manage real-time feature definitions across production ML environments.",
+        "Architected Next.js server-side rendered application architecture supporting agile data exploration across feature metadata services, improving dashboard load performance by 38% and reducing initial render time from 3.2s to 1.9s.",
+        "Delivered high-volume analytics dashboards visualizing 50M+ daily feature updates, implementing virtualized data tables and optimized state management to maintain smooth UI performance across large datasets.",
+        "Developed backend APIs supporting feature inspection and monitoring tools using Go, Python, and Kafka, enabling engineers to debug feature pipelines processing tens of millions of feature events per day.",
+        "Introduced optimized data-fetching and caching strategies across frontend services, lowering UI latency by 42% during high-volume feature queries.",
+        "Implemented telemetry dashboards and monitoring interfaces integrating OpenTelemetry and Prometheus metrics, enabling ML teams to detect pipeline anomalies 40% faster and reduce troubleshooting time during production incidents.",
+        "Partnered with ML platform engineers to integrate feature metadata services and model deployment tooling, streamlining ML feature rollout workflows and reducing feature deployment cycles by ~30%."
+      ]
+    },
+    {
+      "company name": "Gatekeeper",
+      "role": "Full-Stack Engineer (Frontend & Platform Engineering)",
+      "period": "Jun 2021 – Jul 2023",
+      "experience": [
+        "Engineered React + TypeScript procurement dashboards and vendor management portals used by enterprise procurement teams to manage millions of supplier contracts across 1,000+ organizations.",
+        "Architected interactive contract analytics interfaces using React, Redux, and data visualization libraries, enabling procurement teams to analyze vendor performance and contract obligations across multi-million record datasets.", 
+        "Integrated enterprise APIs connecting the platform with Salesforce, procurement systems, and enterprise identity providers, enabling streamlined vendor onboarding and reducing manual procurement workflows by ~35%.",
+        "Streamlined PostgreSQL query pipelines and indexing strategies supporting high-traffic contract endpoints, reducing API response times by 45% and improving platform responsiveness for enterprise users.",
+        "Introduced asynchronous contract automation pipelines using Redis-based background workers, increasing bulk contract processing throughput by 60% during large procurement imports.",
+        "Established automated CI/CD pipelines using GitHub Actions, accelerating release cycles and reducing deployment failures by 30%, enabling more frequent production releases.",
+        "Developed reusable frontend component libraries and modular UI architecture, improving development velocity across engineering teams and reducing feature implementation time by ~25%."
+      ]
+    },
+    {
+      "company name": "Dreamix",
+      "role": "Full-Stack Engineer",
+      "period": "Nov 2019 – Apr 2021",
+      "experience": [
+        "Produced React-based analytics dashboards utilized by enterprise clients to explore real-time business data streams and reporting pipelines.",
+        "Implemented frontend performance improvements including enhanced rendering, component memoization, and efficient data loading strategies, accelerating page rendering speed by 35%.",
+        "Constructed backend microservices supporting frontend analytics APIs using Go and Python, enabling distributed data processing across 10M+ records daily.",
+        "Deployed containerized services using Docker and Kubernetes, allowing automated scaling during peak analytics workloads.",
+        "Improved database query performance with indexing strategies and caching layers, reducing heavy analytics query times by 40%.",
+        "Partnered with UI/UX teams to translate complex analytics workflows into intuitive data visualization interfaces."
+      ]
+    },
+    {
+      "company name": "Arcanys",
+      "role": "Full-Stack Developer",
+      "period": "Sep 2018 – Sep 2019",
+      "experience": [
+        "Built full-stack SaaS applications combining Node.js backend services with React-based frontend interfaces for global product teams.",
+        "Programmed REST APIs powering web dashboards and mobile services utilized across multiple client platforms.",
+        "Constructed responsive UI components with React, TypeScript, HTML5, and CSS, increasing page responsiveness and rendering performance by 25%.",
+        "Structured modular service architecture improving maintainability and enabling faster feature iteration cycles.",
+        "Collaborated with allocated teams across Europe and Asia delivering production features within Agile development cycles."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "University of the Philippines Diliman",
+      "period": "Aug 2014 - Jul 2018",
+      "degree": "B.S. in Computer"
+    }
+  ],
+  "skills": [
+    "Core Languages & Frameworks: Python (FastAPI, Flask, Django), Go (Gin, Fiber), Java (Spring Boot), C#, Rust, JavaScript / TypeScript (Node.js, NestJS), C/C++, Bash / Shell scripting, Elixir(Phoenix), Erlang, Scala, Clojure",
+    "Backend & Distributed Systems Expertise: Microservices Architecture, Service-Oriented Architecture (SOA), Event-Driven Systems, High-Throughput APIs, Streaming Pipelines, Async Processing, Message-Driven Systems, Observability Engineering, SLO / SLA Design, Resiliency Patterns (Retries, Circuit Breakers, Bulkheads), Domain-Driven Design (DDD), CQRS, Event Sourcing, API Gateway Architecture",
+    "AI / ML Production Platforms: ML Feature Platforms, Feature Stores, Model Serving Pipelines, Online Inference Systems, LLM Integration & Retrieval Augmented Generation (RAG), PyTorch, TensorFlow / Keras, XGBoost, LightGBM, scikit-learn, NumPy, Pandas, MLflow, Kubeflow, Feature Pipelines, Responsible AI & Compliance (HIPAA, GDPR), Automation",
+    "Cloud & DevOps Engineering: AWS (EC2, ECS, EKS, Lambda, S3, DynamoDB, RDS, IAM, CloudWatch), n8n, Microsoft Azure (App Services, Service Bus, Azure Functions), Docker, Kubernetes, Helm, Infrastructure as Code (Terraform, CloudFormation), CI/CD Pipelines (GitHub Actions, GitLab CI, Jenkins), Secure Cloud Architectures, Cloud-Native Design Patterns",
+    "Databases & Data Engineering: PostgreSQL, MySQL, SQL Server, MongoDB, DynamoDB, Redis, Query Optimization & Indexing Strategies, Caching Strategies (Redis, Memcached), Streaming Platforms (Kafka, Pulsar), Batch & Real-Time Data Pipelines",
+    "Security & Reliability Engineering: OAuth2, OpenID Connect (OIDC), JWT Authentication, RBAC & Policy-Based Access Control, Multi-Factor Authentication (MFA), WebAuthn, U2F, HSM-Backed Key Management, Secure API Design",
+    "Observability & Production Operations: Prometheus, Grafana, ELK Stack, OpenTelemetry, Distributed Tracing, Production Monitoring & Alerting, Incident Response & Root Cause Analysis, Chaos Engineering",
+    "Testing Frameworks: PyTest, unittest, JUnit, TestNG, Jest, Mocha, NUnit, Cypress, Playwright, Selenium WebDriver, React Testing Library",
+    "Frontend Engineering: React, Angular, Vue.js, Next.js / Server-Side Rendering (SSR), HTML5, CSS3, SCSS, Tailwind CSS, TypeScript Frontend Architecture, REST & GraphQL API Integration"
+  ],
+  "certificates": [
+      "AWS Certified Solutions Architect – Professional (Jun 2021)",
+      "Certified Kubernetes Administrator (CKA) (Nov 2021)",
+      "AWS Certified Machine Learning – Specialty (Aug 2023)",
+      "Snowflake SnowPro Core Certification (Mar 2024)"
+  ]
+}

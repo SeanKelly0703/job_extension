@@ -192,7 +192,7 @@
       .join("\n\n");
   }
 
-  function buildChatPrompt(jobDescription) {
+  function buildFactsExtractionPrompt(jobDescription) {
     return [
       "Extract job details from this job posting text.",
       "Return ONLY valid JSON (no markdown fences, no explanation).",
@@ -326,6 +326,10 @@
     };
   }
 
+  function validateJsonTaskResult(value) {
+    return value && typeof value === "object";
+  }
+
   function setComposerValue(composer, value) {
     composer.focus();
     if (composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement) {
@@ -402,7 +406,7 @@
     return false;
   }
 
-  async function runChatGptExtraction(jobDescription) {
+  async function runChatGptJsonTask(prompt, options = {}) {
     if (!isChatGptPage()) {
       throw new Error("ChatGPT automation must run on chatgpt.com.");
     }
@@ -412,17 +416,20 @@
       throw new Error("Could not find ChatGPT input box. Confirm you're logged in.");
     }
 
-    const prompt = buildChatPrompt(jobDescription);
+    const normalizedPrompt = cleanText(prompt || "");
+    if (!normalizedPrompt) {
+      throw new Error("Prompt is empty.");
+    }
     const baselineAssistantCount = getAssistantMessages().length;
-    setComposerValue(composer, prompt);
+    setComposerValue(composer, normalizedPrompt);
     await sleep(250);
     const filledLen =
       composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement
         ? (composer.value || "").trim().length
         : cleanText(composer.innerText || composer.textContent || "").length;
-    if (filledLen < Math.min(120, prompt.length * 0.2)) {
+    if (filledLen < Math.min(120, normalizedPrompt.length * 0.2)) {
       throw new Error(
-        "ChatGPT input did not accept the prompt. Click inside the message box on ChatGPT, then try Extract via ChatGPT again."
+        "ChatGPT input did not accept the prompt. Click inside the message box on ChatGPT, then try again."
       );
     }
 
@@ -433,7 +440,8 @@
       );
     }
 
-    const timeoutAt = Date.now() + 120000;
+    const timeoutMs = Math.max(120000, Number(options.timeoutMs) || 240000);
+    const timeoutAt = Date.now() + timeoutMs;
     let prevSnapshot = "";
     let stableTicks = 0;
 
@@ -448,16 +456,20 @@
         if (text.includes("{") && text.includes("}")) {
           try {
             const parsed = extractJsonFromText(text);
-            const facts = normalizeFacts(parsed);
-            const hasAny = Object.values(facts).some(Boolean);
-            if (hasAny) {
-              console.log("Extracted facts:", facts);
-              return facts;
+            const validator =
+              typeof options.validateResult === "function"
+                ? options.validateResult
+                : validateJsonTaskResult;
+            const normalized =
+              typeof options.normalizeResult === "function" ? options.normalizeResult(parsed) : parsed;
+            const isValid = validator(normalized);
+            if (isValid) {
+              return normalized;
             }
             if (text === prevSnapshot) {
               stableTicks += 1;
               if (stableTicks >= 3) {
-                return facts;
+                return normalized;
               }
             } else {
               stableTicks = 0;
@@ -474,7 +486,20 @@
       await sleep(450);
     }
 
-    throw new Error("Timed out waiting for ChatGPT response.");
+    throw new Error(`Timed out waiting for ChatGPT response after ${Math.round(timeoutMs / 1000)}s.`);
+  }
+
+  async function runChatGptExtraction(jobDescription) {
+    const prompt = buildFactsExtractionPrompt(jobDescription);
+    return runChatGptJsonTask(prompt, {
+      normalizeResult: normalizeFacts,
+      validateResult: (facts) => {
+        if (!facts || typeof facts !== "object") {
+          return false;
+        }
+        return Object.values(facts).some((value) => Boolean(cleanText(String(value || ""))));
+      }
+    });
   }
 
   if (!window.__JOB_EXTENSION_MESSAGE_LISTENER__) {
@@ -498,6 +523,16 @@
         }
         runChatGptExtraction(jobDescription)
           .then((facts) => sendResponse({ ok: true, facts }))
+          .catch((error) => sendResponse({ ok: false, error: error.message }));
+      }
+      if (message?.type === "RUN_CHATGPT_JSON_TASK") {
+        const prompt = String(message.prompt || "");
+        if (!cleanText(prompt)) {
+          sendResponse({ ok: false, error: "Prompt is empty." });
+          return true;
+        }
+        runChatGptJsonTask(prompt, { timeoutMs: Number(message.timeoutMs) || undefined })
+          .then((result) => sendResponse({ ok: true, result }))
           .catch((error) => sendResponse({ ok: false, error: error.message }));
       }
       return true;

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Job Scraper</title>
+    <title>Resume Tailor</title>
     <style>
       :root {
         --bg: #f4f6fb;
@@ -228,6 +228,66 @@
         word-break: break-word;
       }
 
+      .tailor-panel {
+        margin-top: 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px;
+      }
+
+      .tailor-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .tailor-grid .field {
+        min-width: 0;
+      }
+
+      .tailor-grid input[type="number"] {
+        width: 100%;
+      }
+
+      .tailor-result {
+        margin-top: 8px;
+        padding: 8px;
+        border: 1px dashed var(--border);
+        border-radius: 8px;
+        font-size: 12px;
+      }
+
+      .tailor-kv {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 4px 8px;
+      }
+
+      .tailor-kv strong {
+        color: var(--muted);
+      }
+
+      .tailor-actions {
+        margin-top: 8px;
+        display: flex;
+        gap: 8px;
+      }
+
+      .tailor-preview {
+        margin-top: 8px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+      }
+
+      .tailor-preview iframe {
+        width: 100%;
+        height: 260px;
+        border: 0;
+        display: block;
+      }
+
     </style>
   </head>
   <body>
@@ -235,7 +295,7 @@
       <div class="card header">
         <div>
           <h3>Job Description Scraper</h3>
-          <div class="muted">Auto-detect and submit quickly</div>
+          <div class="muted">Tailor resume with ATS-focused iterations</div>
         </div>
         <button id="themeToggle" class="btn" title="Toggle theme">Dark</button>
       </div>
@@ -252,7 +312,7 @@
         <div class="row">
           <button id="extractBtn" class="btn">Extract</button>
           <button id="extractFactsBtn" class="btn">Extract via ChatGPT</button>
-          <button id="sendBtn" class="btn primary">Send</button>
+          <button id="sendBtn" class="btn primary">Send Job</button>
         </div>
         <div id="factsPanel" class="facts-panel">
           <div class="facts-panel-title">From ChatGPT</div>
@@ -275,11 +335,26 @@
             </div>
           </div>
         </div>
+        <div class="tailor-panel">
+          <div class="facts-panel-title">Resume Tailoring</div>
+          <div class="muted">Resume source: <code>extension/src/resume.json</code></div>
+          <div class="muted" style="margin-top: 8px;">
+            Single-pass tailoring prompt (no iteration loop).
+          </div>
+          <div class="tailor-actions">
+            <button id="tailorExportBtn" class="btn">Tailor from resume.json</button>
+            <button id="exportPreviewBtn" class="btn primary" disabled>Export PDF</button>
+          </div>
+          <div id="tailorResult" class="tailor-result muted">No resume tailoring run yet.</div>
+          <div id="tailorPreview" class="tailor-preview" style="display:none;">
+            <iframe id="tailorPreviewFrame" title="Tailored resume preview"></iframe>
+          </div>
+        </div>
         <label for="description" style="margin-top: 10px;">Job Description</label>
         <textarea id="description" placeholder="Extracted job description will appear here..."></textarea>
         <div class="footer">
           <span id="charCount" class="pill">0 chars</span>
-          <span class="muted">Review before sending</span>
+          <span class="muted">Review before tailoring</span>
         </div>
         <div id="status" class="status info">Ready.</div>
         <div class="recent-jobs">
