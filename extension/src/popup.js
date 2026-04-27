@@ -69,6 +69,19 @@ function normalizeText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+function formatPhoneForDisplay(value) {
+  const text = normalizeText(value);
+  if (!text) {
+    return "";
+  }
+  const digits = text.replace(/[^\d+]/g, "");
+  const localMatch = digits.match(/^\+63(\d{3})(\d{3})(\d{4})$/);
+  if (localMatch) {
+    return `+63 ${localMatch[1]} ${localMatch[2]} ${localMatch[3]}`;
+  }
+  return text;
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -145,20 +158,47 @@ function loadResumeProfileFromJsonData(data) {
         .filter(Boolean)
     : [];
   const certItems = normalizeArray(data?.certificates);
+  const experienceRecords = experiences
+    .map((entry) => ({
+      company: normalizeText(entry?.["company name"]),
+      title: normalizeText(entry?.role),
+      dates: normalizeText(entry?.period),
+      start_month: "",
+      end_month: "",
+      bullets: normalizeArray(entry?.experience)
+    }))
+    .filter((entry) => entry.company || entry.title || entry.dates || entry.bullets.length);
+  const educationRecords = Array.isArray(data?.education)
+    ? data.education
+        .map((entry) => ({
+          school: normalizeText(entry?.institution),
+          degree: normalizeText(entry?.degree),
+          dates: normalizeText(entry?.period),
+          start_month: "",
+          end_month: "",
+          details: ""
+        }))
+        .filter((entry) => entry.school || entry.degree || entry.dates)
+    : [];
   const fullName = normalizeText(data?.name || "Candidate");
   const headline = profileLines[0] || "";
   const contact = {
     email: normalizeText(data?.email),
     linkedin: normalizeText(data?.linkedin_address || data?.linkedin),
+    github: normalizeText(data?.github || data?.github_url),
+    portfolio: normalizeText(data?.portfolio || data?.portfolio_url || data?.website),
     phone: normalizeText(data?.phone || data?.phone_number || data?.mobile || data?.contact_number),
     address: normalizeText(data?.address)
   };
+  const webPresence = [contact.linkedin, contact.github, contact.portfolio].filter(Boolean);
   const sections = {
     summary: profileLines,
     experience: experienceItems,
     projects,
     skills: skillItems,
-    education: [...educationItems, ...certItems]
+    web_presence: webPresence,
+    education: educationItems,
+    certifications: certItems
   };
   const rawText = Object.values(sections)
     .flat()
@@ -170,8 +210,12 @@ function loadResumeProfileFromJsonData(data) {
     contact,
     raw_text: rawText,
     sections,
+    experience_records: experienceRecords,
+    education_records: educationRecords,
+    web_presence: webPresence,
+    certifications: certItems,
     template: {
-      section_order: ["summary", "experience", "projects", "skills", "education"],
+      section_order: ["summary", "experience", "projects", "skills", "web_presence", "education", "certifications"],
       has_summary: sections.summary.length > 0,
       font_family: "Segoe UI"
     }
@@ -295,11 +339,16 @@ function renderTailorResult(result) {
   tailorResultEl.classList.remove("muted");
   const matched = Array.isArray(result.keyword_focus) ? result.keyword_focus.slice(0, 8) : [];
   const missing = Array.isArray(result.missing_keywords) ? result.missing_keywords.slice(0, 6) : [];
+  const bestAtsScore = Number(result.best_ats_score);
+  const targetScore = Number(result.target_score);
+  const iterationCount = Array.isArray(result.iterations) ? result.iterations.length : 0;
   tailorResultEl.innerHTML = `
     <div class="tailor-kv">
       <strong>Mode</strong><span>${escapeHtml(result.mode || "single_pass")}</span>
       <strong>Prompt</strong><span>${escapeHtml(result.prompt_strategy || "ATS-optimized single prompt")}</span>
     </div>
+    <div style="margin-top:6px;"><strong>ATS score:</strong> ${Number.isFinite(bestAtsScore) ? bestAtsScore : "N/A"}${Number.isFinite(targetScore) ? ` / target ${targetScore}` : ""}</div>
+    <div style="margin-top:6px;"><strong>Iterations:</strong> ${iterationCount || "1"}</div>
     <div style="margin-top:6px;"><strong>Keyword focus:</strong> ${escapeHtml(matched.join(", ") || "Not available")}</div>
     <div style="margin-top:6px;"><strong>Missing requirements:</strong> ${escapeHtml(missing.join(", ") || "None detected")}</div>
   `;
@@ -313,11 +362,17 @@ function buildResumeBody(tailoredResume, sourceTemplate) {
     template.font_family || '"Bodoni MT", Didot, "Garamond", "Times New Roman", serif'
   );
   const contact = resume.contact || {};
-  const contactParts = [
-    { icon: "✉", value: normalizeText(contact.email) },
-    { icon: "in", value: normalizeText(contact.linkedin).replace(/^https?:\/\//i, "") },
-    { icon: "☎", value: normalizeText(contact.phone) }
-  ].filter((item) => Boolean(item.value));
+  const webPresenceValues = Array.isArray(resume.web_presence) ? resume.web_presence : [];
+  const normalizedWebPresence = webPresenceValues.map((item) => normalizeText(item)).filter(Boolean);
+  const contactPrimaryLine = [
+    normalizeText(contact.email) ? `Email: ${normalizeText(contact.email)}` : "",
+    formatPhoneForDisplay(contact.phone) ? `Phone Number: ${formatPhoneForDisplay(contact.phone)}` : ""
+  ].filter(Boolean).join(" | ");
+  const contactSecondaryLine = [
+    normalizeText(contact.linkedin) ? `LinkedIn: ${normalizeText(contact.linkedin)}` : "",
+    normalizeText(contact.github) ? `GitHub: ${normalizeText(contact.github)}` : "",
+    normalizeText(contact.portfolio) ? `Portfolio: ${normalizeText(contact.portfolio)}` : ""
+  ].filter(Boolean).join(" | ");
   const contactAddress = normalizeText(contact.address);
   const expHtml = (resume.experience || [])
     .map(
@@ -355,6 +410,9 @@ function buildResumeBody(tailoredResume, sourceTemplate) {
       </div>`
     )
     .join("");
+  const certificationsHtml = (resume.certifications || [])
+    .map((item) => `<div class="entry"><div>${escapeHtml(item)}</div></div>`)
+    .join("");
   const profileHtml = resume.summary ? `<p>${escapeHtml(resume.summary)}</p>` : "";
   const skillsHtml = (resume.skills || [])
     .map((skill) => `<span class="skill">${escapeHtml(skill)}</span>`)
@@ -365,6 +423,9 @@ function buildResumeBody(tailoredResume, sourceTemplate) {
   const languagesHtml = (resume.languages || [])
     .map((item) => `<span class="skill">${escapeHtml(item)}</span>`)
     .join("");
+  const webPresenceHtml = normalizedWebPresence
+    .map((url) => `<div class="entry"><div>${escapeHtml(url)}</div></div>`)
+    .join("");
   return `
   <style>
     @page { size: A4; margin: 14mm; }
@@ -373,9 +434,8 @@ function buildResumeBody(tailoredResume, sourceTemplate) {
     h1 { margin: 0; font-size: ${style.nameFontSizePx}px; line-height: 1; font-weight: 700; text-align: center; }
     h2 { margin: ${style.sectionHeaderTopMarginPx}px 0 ${style.sectionHeaderBottomMarginPx}px; font-size: ${style.sectionHeaderFontSizePx}px; font-weight: 700; border-bottom: ${style.sectionDividerThicknessPx}px solid #222; text-transform: uppercase; letter-spacing: 0; line-height: 1.05; }
     .headline { margin: ${style.headlineTopMarginPx}px auto ${style.headlineBottomMarginPx}px; color: #1f1f1f; text-align: center; font-style: italic; font-size: ${style.headlineFontSizePx}px; line-height: 1.1; max-width: 98%; }
-    .contact-row { display: flex; flex-wrap: wrap; gap: ${style.contactGapPx}px; justify-content: center; margin-bottom: 2px; font-size: ${style.bodyFontSizePx}px; align-items: center; }
-    .contact-item { display: inline-flex; align-items: center; gap: 6px; }
-    .contact-icon { font-weight: 700; font-size: ${style.contactIconFontSizePx}px; min-width: 10px; text-align: center; }
+    .contact-row { display: block; margin-bottom: 2px; font-size: ${style.bodyFontSizePx}px; text-align: center; line-height: 1.35; }
+    .contact-line { margin-bottom: 2px; }
     .contact-address { text-align: center; margin-bottom: ${style.contactAddressBottomMarginPx}px; font-size: ${style.bodyFontSizePx}px; }
     .entry { margin-bottom: ${style.entryBottomMarginPx}px; page-break-inside: avoid; }
     .entry-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
@@ -394,17 +454,17 @@ function buildResumeBody(tailoredResume, sourceTemplate) {
   <div id="tailored-resume-root" class="resume-root">
     <h1>${escapeHtml(resume.full_name || "Candidate Name")}</h1>
     ${resume.headline ? `<div class="headline">${escapeHtml(resume.headline)}</div>` : ""}
-    ${contactParts.length ? `<div class="contact-row">${contactParts
-      .map((item) => `<span class="contact-item"><span class="contact-icon">${escapeHtml(item.icon)}</span><span>${escapeHtml(item.value)}</span></span>`)
-      .join("")}</div>` : ""}
-    ${contactAddress ? `<div class="contact-address"><span class="contact-icon">◆</span> ${escapeHtml(contactAddress)}</div>` : ""}
+    ${(contactPrimaryLine || contactSecondaryLine) ? `<div class="contact-row">${contactPrimaryLine ? `<div class="contact-line">${escapeHtml(contactPrimaryLine)}</div>` : ""}${contactSecondaryLine ? `<div class="contact-line">${escapeHtml(contactSecondaryLine)}</div>` : ""}</div>` : ""}
+    ${contactAddress ? `<div class="contact-address">${escapeHtml(contactAddress)}</div>` : ""}
     ${resume.summary ? `<h2>Profile</h2><div class="summary-block">${profileHtml}</div>` : ""}
     ${expHtml ? `<h2>Professional Experience</h2><div class="section-block">${expHtml}</div>` : ""}
     ${projectHtml ? `<h2>Projects</h2><div class="section-block">${projectHtml}</div>` : ""}
     ${(resume.skills || []).length ? `<h2>Skills</h2><div class="skills section-block">${skillsHtml}</div>` : ""}
     ${(resume.soft_skills || []).length ? `<h2>Soft Skills</h2><div class="skills section-block">${softSkillsHtml}</div>` : ""}
     ${(resume.languages || []).length ? `<h2>Languages</h2><div class="skills section-block">${languagesHtml}</div>` : ""}
+    ${webPresenceHtml ? `<h2>Web Presence</h2><div class="section-block">${webPresenceHtml}</div>` : ""}
     ${educationHtml ? `<h2>Education</h2><div class="section-block">${educationHtml}</div>` : ""}
+    ${certificationsHtml ? `<h2>Certifications</h2><div class="section-block">${certificationsHtml}</div>` : ""}
   </div>`;
 }
 
@@ -500,6 +560,16 @@ function buildSoftSkillsSectionHtml(resume) {
 function buildLanguagesSectionHtml(resume) {
   const values = Array.isArray(resume?.languages) ? resume.languages : [];
   return values.map((lang) => `<span class="skill">${escapeHtml(lang)}</span>`).join("");
+}
+
+function buildWebPresenceSectionHtml(resume) {
+  const values = Array.isArray(resume?.web_presence) ? resume.web_presence : [];
+  return values.map((item) => `<div class="entry"><div>${escapeHtml(item)}</div></div>`).join("");
+}
+
+function buildCertificationsSectionHtml(resume) {
+  const values = Array.isArray(resume?.certifications) ? resume.certifications : [];
+  return values.map((item) => `<div class="entry"><div>${escapeHtml(item)}</div></div>`).join("");
 }
 
 function buildEducationSectionHtml(resume) {
@@ -918,15 +988,28 @@ function applyTemplateBindings(templateHtml, resume, resumeBodyHtml) {
     return "";
   }
   const contact = resume?.contact || {};
-  const hasSectionPlaceholders = /\{\{PROFILE\}\}|\{\{EXPERIENCE\}\}|\{\{SKILLS\}\}|\{\{SOFT_SKILLS\}\}|\{\{LANGUAGES\}\}|\{\{PROJECTS\}\}|\{\{EDUCATION\}\}/.test(
+  const contactPrimary = [
+    contact.email ? `Email: ${normalizeText(contact.email)}` : "",
+    contact.phone ? `Phone Number: ${formatPhoneForDisplay(contact.phone)}` : ""
+  ].filter(Boolean).join(" | ");
+  const contactSecondary = [
+    contact.linkedin ? `LinkedIn: ${normalizeText(contact.linkedin)}` : "",
+    contact.github ? `GitHub: ${normalizeText(contact.github)}` : "",
+    contact.portfolio ? `Portfolio: ${normalizeText(contact.portfolio)}` : ""
+  ].filter(Boolean).join(" | ");
+  const hasSectionPlaceholders = /\{\{PROFILE\}\}|\{\{EXPERIENCE\}\}|\{\{SKILLS\}\}|\{\{SOFT_SKILLS\}\}|\{\{LANGUAGES\}\}|\{\{WEB_PRESENCE\}\}|\{\{PROJECTS\}\}|\{\{EDUCATION\}\}|\{\{CERTIFICATIONS\}\}/.test(
     html
   );
   let bound = html
     .replace(/\{\{FULL_NAME\}\}/g, escapeHtml(resume?.full_name || "Candidate Name"))
     .replace(/\{\{HEADLINE\}\}/g, escapeHtml(resume?.headline || ""))
+    .replace(/\{\{CONTACT_PRIMARY\}\}/g, escapeHtml(contactPrimary))
+    .replace(/\{\{CONTACT_SECONDARY\}\}/g, escapeHtml(contactSecondary))
     .replace(/\{\{EMAIL\}\}/g, escapeHtml(contact.email || ""))
     .replace(/\{\{LINKEDIN\}\}/g, escapeHtml(contact.linkedin || ""))
-    .replace(/\{\{PHONE\}\}/g, escapeHtml(contact.phone || ""))
+    .replace(/\{\{GITHUB\}\}/g, escapeHtml(contact.github || ""))
+    .replace(/\{\{PORTFOLIO\}\}/g, escapeHtml(contact.portfolio || ""))
+    .replace(/\{\{PHONE\}\}/g, escapeHtml(formatPhoneForDisplay(contact.phone || "")))
     .replace(/\{\{ADDRESS\}\}/g, escapeHtml(contact.address || ""))
     .replace(/\{\{PROFILE\}\}/g, buildProfileSectionHtml(resume))
     .replace(/\{\{EXPERIENCE\}\}/g, buildExperienceSectionHtml(resume))
@@ -934,7 +1017,9 @@ function applyTemplateBindings(templateHtml, resume, resumeBodyHtml) {
     .replace(/\{\{SKILLS\}\}/g, buildSkillsSectionHtml(resume))
     .replace(/\{\{SOFT_SKILLS\}\}/g, buildSoftSkillsSectionHtml(resume))
     .replace(/\{\{LANGUAGES\}\}/g, buildLanguagesSectionHtml(resume))
-    .replace(/\{\{EDUCATION\}\}/g, buildEducationSectionHtml(resume));
+    .replace(/\{\{WEB_PRESENCE\}\}/g, buildWebPresenceSectionHtml(resume))
+    .replace(/\{\{EDUCATION\}\}/g, buildEducationSectionHtml(resume))
+    .replace(/\{\{CERTIFICATIONS\}\}/g, buildCertificationsSectionHtml(resume));
   const collapsibleSections = [
     { id: "profile-section", content: buildProfileSectionHtml(resume) },
     { id: "experience-section", content: buildExperienceSectionHtml(resume) },
@@ -942,7 +1027,9 @@ function applyTemplateBindings(templateHtml, resume, resumeBodyHtml) {
     { id: "skills-section", content: buildSkillsSectionHtml(resume) },
     { id: "soft-skills-section", content: buildSoftSkillsSectionHtml(resume) },
     { id: "languages-section", content: buildLanguagesSectionHtml(resume) },
-    { id: "education-section", content: buildEducationSectionHtml(resume) }
+    { id: "web-presence-section", content: buildWebPresenceSectionHtml(resume) },
+    { id: "education-section", content: buildEducationSectionHtml(resume) },
+    { id: "certifications-section", content: buildCertificationsSectionHtml(resume) }
   ];
   collapsibleSections.forEach((section) => {
     if (normalizeText(section.content)) {
@@ -1061,11 +1148,13 @@ async function runResumeTailorFlow() {
   resumeProfile.contact = {
     email: normalizeText(resumeProfile?.contact?.email || lastTemplateFallbackContact.email),
     linkedin: normalizeText(resumeProfile?.contact?.linkedin || lastTemplateFallbackContact.linkedin),
+    github: normalizeText(resumeProfile?.contact?.github),
+    portfolio: normalizeText(resumeProfile?.contact?.portfolio),
     phone: normalizeText(resumeProfile?.contact?.phone || lastTemplateFallbackContact.phone),
     address: normalizeText(resumeProfile?.contact?.address || lastTemplateFallbackContact.address)
   };
   const templateGuide = await loadTemplateGuideFromProjectTemplate();
-  setStatus("Running single-pass ATS tailoring prompt on ChatGPT...", "info");
+  setStatus("Running iterative ATS tailoring on ChatGPT (target: 97)...", "info");
   const normalizedFacts = normalizeFacts(lastExtractedFacts || {});
   const result = await new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
@@ -1076,7 +1165,9 @@ async function runResumeTailorFlow() {
           jobDescription,
           templateGuide,
           jobFacts: normalizedFacts,
-          targetJobTitle: normalizedFacts.job_title
+          targetJobTitle: normalizedFacts.job_title,
+          targetScore: 97,
+          maxIterations: 5
         }
       },
       (response) => {
@@ -1115,19 +1206,33 @@ async function runResumeTailorFlow() {
       linkedin: normalizeText(
         effectiveResult.best_resume?.contact?.linkedin || profileContact.linkedin || lastTemplateFallbackContact.linkedin
       ),
+      github: normalizeText(
+        effectiveResult.best_resume?.contact?.github || profileContact.github
+      ),
+      portfolio: normalizeText(
+        effectiveResult.best_resume?.contact?.portfolio || profileContact.portfolio
+      ),
       phone: normalizeText(
         effectiveResult.best_resume?.contact?.phone || profileContact.phone || lastTemplateFallbackContact.phone
       ),
       address: normalizeText(
         effectiveResult.best_resume?.contact?.address || profileContact.address || lastTemplateFallbackContact.address
       )
-    }
+    },
+    web_presence: Array.isArray(effectiveResult.best_resume?.web_presence) && effectiveResult.best_resume.web_presence.length
+      ? effectiveResult.best_resume.web_presence.map((item) => normalizeText(item)).filter(Boolean)
+      : [profileContact.linkedin, profileContact.github, profileContact.portfolio].map((item) => normalizeText(item)).filter(Boolean)
   };
   lastTailorResult = effectiveResult;
   lastTailorTemplate = resumeProfile.template || {};
   renderTailorResult(effectiveResult);
   renderTailoredResumePreview(effectiveResult, lastTailorTemplate);
-  const baseMessage = "Tailoring complete. Preview is ready. Export when you are satisfied.";
+  const scored = Number(effectiveResult?.best_ats_score);
+  const target = Number(effectiveResult?.target_score);
+  const progressText = Number.isFinite(scored)
+    ? ` Best ATS score: ${scored}${Number.isFinite(target) ? ` / ${target}` : ""}.`
+    : "";
+  const baseMessage = `Tailoring complete.${progressText} Preview is ready. Export when you are satisfied.`;
   if (effectiveResult.partial_reason) {
     setStatus(`${baseMessage}\n${effectiveResult.partial_reason}`, "info");
   } else {

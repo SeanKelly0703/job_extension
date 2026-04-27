@@ -4,6 +4,8 @@ const CACHE_KEY = "detectedJobsByTab";
 const CHATGPT_TAB_PATTERNS = ["*://chatgpt.com/*", "*://*.chatgpt.com/*"];
 const MAX_RAG_CHUNKS = 8;
 const MAX_PRIORITY_TERMS = 24;
+const DEFAULT_TARGET_ATS_SCORE = 97;
+const DEFAULT_MAX_ITERATIONS = 5;
 const LOW_SIGNAL_TERMS = new Set([
   "program",
   "software",
@@ -319,6 +321,8 @@ function resumeToSectionText(resume) {
     skills: cleanText((Array.isArray(value.skills) ? value.skills : []).join(" | ")),
     soft_skills: cleanText((Array.isArray(value.soft_skills) ? value.soft_skills : []).join(" | ")),
     languages: cleanText((Array.isArray(value.languages) ? value.languages : []).join(" | ")),
+    web_presence: cleanText((Array.isArray(value.web_presence) ? value.web_presence : []).join(" | ")),
+    certifications: cleanText((Array.isArray(value.certifications) ? value.certifications : []).join(" | ")),
     experience: cleanText(
       (Array.isArray(value.experience) ? value.experience : [])
         .flatMap((item) => [item?.company, item?.title, item?.location, item?.dates, ...(item?.bullets || [])])
@@ -410,6 +414,22 @@ function normalizeDateRange(value) {
   return rangeParts.join(" - ");
 }
 
+function deriveDateParts(value) {
+  const normalized = normalizeDateRange(value);
+  const parts = normalized.split(" - ").map((item) => cleanText(item)).filter(Boolean);
+  if (!parts.length) {
+    return { dates: "", start_month: "", end_month: "" };
+  }
+  if (parts.length === 1) {
+    return { dates: normalized, start_month: parts[0], end_month: "" };
+  }
+  return {
+    dates: normalized,
+    start_month: parts[0],
+    end_month: parts[1]
+  };
+}
+
 function deriveSoftSkillsFromEvidence(text) {
   const source = normalizeTerm(text);
   const mapping = [
@@ -458,6 +478,32 @@ function deriveLanguagesFromEvidence(resume, resumeProfile) {
   return known.filter((name) => text.includes(name.toLowerCase())).slice(0, 8);
 }
 
+function deriveWebPresenceFromEvidence(resumeProfile) {
+  const profile = resumeProfile && typeof resumeProfile === "object" ? resumeProfile : {};
+  const links = [];
+  const contact = profile.contact || {};
+  const candidates = [
+    contact.linkedin,
+    contact.github,
+    contact.portfolio,
+    profile.github,
+    profile.github_url,
+    profile.portfolio,
+    profile.portfolio_url,
+    profile.website
+  ];
+  candidates.forEach((item) => {
+    const value = cleanText(item);
+    if (!value) {
+      return;
+    }
+    if (!links.includes(value)) {
+      links.push(value);
+    }
+  });
+  return links.slice(0, 6);
+}
+
 function enforceTargetTitleAlignment(resume, targetJobTitle) {
   const normalizedTitle = cleanText(targetJobTitle);
   if (!normalizedTitle) {
@@ -501,7 +547,12 @@ function buildTailorPrompt({
     : {
         full_name: cleanText(resumeProfile?.full_name || ""),
         headline: cleanText(resumeProfile?.headline || ""),
+        contact: resumeProfile?.contact || {},
         sections: resumeProfile?.sections || {},
+        experience_records: resumeProfile?.experience_records || [],
+        education_records: resumeProfile?.education_records || [],
+        web_presence: resumeProfile?.web_presence || [],
+        certifications: resumeProfile?.certifications || [],
         template: {
           section_order: sectionOrder,
           has_summary: hasSummary,
@@ -538,12 +589,22 @@ function buildTailorPrompt({
     "- Prefer specific named tools/services over broad buzzwords.",
     "- Keep bullets achievement-first with clear scope and outcome.",
     "- Ensure each major JD requirement is represented in summary, experience, projects, or skills when truthful.",
+    "- Avoid repetitive language: do not reuse the same opening verb or phrase across consecutive bullets.",
+    "- Limit repeated keyword echoing; vary sentence construction while preserving ATS-relevant terms.",
+    "- Keep natural lexical variety (synonyms and alternate phrasing) so text does not read templated.",
     "Coverage policy:",
     "- Ensure each priority keyword appears at least once across summary, experience, projects, or skills when truthful.",
     "- Put role-title alignment in headline/summary when possible.",
     "- Include an explicit Soft Skills section (`soft_skills`) derived from demonstrated behaviors in experience bullets.",
     "- Include an explicit Languages section (`languages`) for spoken and/or programming languages supported by evidence.",
+    "- Include an explicit Certifications section (`certifications`) if source evidence contains certifications.",
+    "- Include a `web_presence` section with professional URLs (LinkedIn, GitHub, portfolio) when available.",
+    "- Use `Phone Number` wording where contact phone appears.",
+    "- Spell out abbreviations consistently (e.g., use `RESTful APIs` consistently).",
+    "- Add concise education details/bullets when available (coursework, projects, or focus areas).",
+    "- Keep URLs valid: include LinkedIn/profile URLs only when known, otherwise omit empty placeholders.",
     "- Use one consistent date format across experience/projects/education: `MMM YYYY - MMM YYYY` or `MMM YYYY - Present`.",
+    "- Populate `start_month` and `end_month` for each experience/project/education entry when date evidence is available.",
     "Hard constraints:",
     "- Never fabricate employers, dates, titles, degrees, certifications, tools, or metrics.",
     "- If a requirement is missing, do not invent it; emphasize adjacent transferable evidence instead.",
@@ -554,7 +615,7 @@ function buildTailorPrompt({
       ? "Use the resume PDF file already uploaded in this ChatGPT conversation as the source of truth."
       : "Use the provided resume profile and retrieved snippets as source context.",
     "Return ONLY valid JSON with this schema (no markdown, no commentary):",
-    '{"full_name":"","headline":"","summary":"","experience":[{"company":"","title":"","dates":"","location":"","bullets":[""]}],"projects":[{"name":"","dates":"","bullets":[""]}],"skills":[""],"soft_skills":[""],"languages":[""],"education":[{"school":"","degree":"","dates":"","details":""}]}',
+    '{"full_name":"","headline":"","summary":"","experience":[{"company":"","title":"","dates":"","start_month":"","end_month":"","location":"","bullets":[""]}],"projects":[{"name":"","dates":"","start_month":"","end_month":"","bullets":[""]}],"skills":[""],"soft_skills":[""],"languages":[""],"web_presence":[""],"education":[{"school":"","degree":"","dates":"","start_month":"","end_month":"","details":""}],"certifications":[""]}',
     "",
     useChatGptFileMode ? "Original resume profile JSON: (not provided; read attached file in chat context)." : "Original resume profile JSON:",
     useChatGptFileMode ? "" : JSON.stringify(compactProfile, null, 2),
@@ -601,7 +662,9 @@ function buildCoverageRefinementPrompt({
     skills: tailoredResume?.skills || [],
     soft_skills: tailoredResume?.soft_skills || [],
     languages: tailoredResume?.languages || [],
-    education: tailoredResume?.education || []
+    web_presence: tailoredResume?.web_presence || [],
+    education: tailoredResume?.education || [],
+    certifications: tailoredResume?.certifications || []
   };
   return [
     "You are an ATS resume optimizer doing a focused refinement pass.",
@@ -610,12 +673,17 @@ function buildCoverageRefinementPrompt({
     "- Keep all employers, dates, titles, education, and certifications truthful (no fabrication).",
     "- Keep bullets concise and action-oriented.",
     "- Integrate missing terms naturally across summary, skills, and relevant bullets.",
+    "- Reduce repetitive wording by varying bullet starters and sentence structure.",
+    "- Do not repeat the same multi-word phrase across multiple bullets unless strictly necessary.",
     "- Keep `soft_skills` and `languages` populated from evidence (do not invent unsupported fluency claims).",
+    "- Keep `certifications` explicit when evidence exists.",
+    "- Keep `web_presence` to real professional URLs only.",
     "- Keep all dates in one format: `MMM YYYY - MMM YYYY` or `MMM YYYY - Present`.",
+    "- Populate `start_month` and `end_month` fields when date evidence is available.",
     "- Keep parser-friendly wording and section compatibility.",
     "- Ensure headline/summary reflects the target role phrase when truthful.",
     "Return ONLY valid JSON with this schema (no markdown):",
-    '{"full_name":"","headline":"","summary":"","experience":[{"company":"","title":"","dates":"","location":"","bullets":[""]}],"projects":[{"name":"","dates":"","bullets":[""]}],"skills":[""],"soft_skills":[""],"languages":[""],"education":[{"school":"","degree":"","dates":"","details":""}]}',
+    '{"full_name":"","headline":"","summary":"","experience":[{"company":"","title":"","dates":"","start_month":"","end_month":"","location":"","bullets":[""]}],"projects":[{"name":"","dates":"","start_month":"","end_month":"","bullets":[""]}],"skills":[""],"soft_skills":[""],"languages":[""],"web_presence":[""],"education":[{"school":"","degree":"","dates":"","start_month":"","end_month":"","details":""}],"certifications":[""]}',
     "",
     "Current tailored resume JSON:",
     JSON.stringify(compactResume, null, 2),
@@ -642,7 +710,11 @@ function buildScorePrompt({ jobDescription, tailoredResume }) {
     experience: tailoredResume?.experience || [],
     projects: tailoredResume?.projects || [],
     skills: tailoredResume?.skills || [],
-    education: tailoredResume?.education || []
+    soft_skills: tailoredResume?.soft_skills || [],
+    languages: tailoredResume?.languages || [],
+    web_presence: tailoredResume?.web_presence || [],
+    education: tailoredResume?.education || [],
+    certifications: tailoredResume?.certifications || []
   };
   const prompt = [
     "You are an ATS scoring assistant.",
@@ -660,10 +732,84 @@ function buildScorePrompt({ jobDescription, tailoredResume }) {
   return prompt;
 }
 
+function buildIterationTailorPrompt({
+  jobDescription,
+  currentResume,
+  scoreReport,
+  targetJobTitle,
+  priorityTerms,
+  templateGuide
+}) {
+  const sectionOrder = Array.isArray(templateGuide?.section_order) && templateGuide.section_order.length
+    ? templateGuide.section_order
+    : ["summary", "experience", "projects", "skills", "education"];
+  return [
+    "You are a senior ATS resume strategist running an iterative improvement pass.",
+    "Improve the current tailored resume to increase ATS score while keeping all content truthful and evidence-based.",
+    "Priorities for this pass:",
+    "- Close missing keywords and weak requirement matches naturally.",
+    "- Improve wording precision and measurable impact.",
+    "- Remove repetitive wording patterns and diversify phrasing across bullets and summary.",
+    "- Keep parser-friendly formatting and section clarity.",
+    "- Preserve date consistency: `MMM YYYY - MMM YYYY` or `MMM YYYY - Present`.",
+    "- Keep `soft_skills` and `languages` populated from real evidence only.",
+    "- Keep `certifications` explicit when evidence exists.",
+    "- Populate `start_month` and `end_month` fields for dated entries when evidence is available.",
+    "Hard constraints:",
+    "- Never fabricate employers, dates, titles, degrees, certifications, tools, or metrics.",
+    "- Do not add unsupported technologies or role claims.",
+    "- Avoid repeating identical opening words in adjacent bullets.",
+    "",
+    "Current ATS score report JSON:",
+    JSON.stringify(scoreReport, null, 2),
+    "",
+    "Target job title:",
+    cleanText(targetJobTitle || ""),
+    "",
+    "Priority keyword targets:",
+    JSON.stringify(priorityTerms.map((item) => item.term).slice(0, 18), null, 2),
+    "",
+    "Preferred section order:",
+    JSON.stringify(sectionOrder, null, 2),
+    "",
+    "Current tailored resume JSON:",
+    JSON.stringify(
+      {
+        full_name: cleanText(currentResume?.full_name || ""),
+        headline: cleanText(currentResume?.headline || ""),
+        summary: cleanText(currentResume?.summary || ""),
+        experience: currentResume?.experience || [],
+        projects: currentResume?.projects || [],
+        skills: currentResume?.skills || [],
+        soft_skills: currentResume?.soft_skills || [],
+        languages: currentResume?.languages || [],
+        web_presence: currentResume?.web_presence || [],
+        education: currentResume?.education || [],
+        certifications: currentResume?.certifications || []
+      },
+      null,
+      2
+    ),
+    "",
+    "Job description:",
+    jobDescription,
+    "",
+    "Return ONLY valid JSON with this schema (no markdown, no commentary):",
+    '{"full_name":"","headline":"","summary":"","experience":[{"company":"","title":"","dates":"","start_month":"","end_month":"","location":"","bullets":[""]}],"projects":[{"name":"","dates":"","start_month":"","end_month":"","bullets":[""]}],"skills":[""],"soft_skills":[""],"languages":[""],"web_presence":[""],"education":[{"school":"","degree":"","dates":"","start_month":"","end_month":"","details":""}],"certifications":[""]}'
+  ].join("\n");
+}
+
 function normalizeTailoredResume(raw) {
   const value = raw && typeof raw === "object" ? raw : {};
+  function normalizeTerminology(input) {
+    return String(input || "")
+      .replace(/\bHTMLS\b/gi, "HTML")
+      .replace(/\bREST\s*API'?S?\b/gi, "RESTful APIs")
+      .replace(/\bJavascript\b/g, "JavaScript")
+      .replace(/\bTypescript\b/g, "TypeScript");
+  }
   function normalizeString(input) {
-    return cleanText(input || "");
+    return cleanText(normalizeTerminology(input || ""));
   }
   function normalizeStringArray(items) {
     if (!Array.isArray(items)) {
@@ -675,34 +821,49 @@ function normalizeTailoredResume(raw) {
     if (!Array.isArray(items)) {
       return [];
     }
-    return items.map((item) => ({
-      company: normalizeString(item?.company),
-      title: normalizeString(item?.title),
-      dates: normalizeString(item?.dates),
-      location: normalizeString(item?.location),
-      bullets: normalizeStringArray(item?.bullets)
-    }));
+    return items.map((item) => {
+      const dateParts = deriveDateParts(item?.dates || [item?.start_month, item?.end_month].filter(Boolean).join(" - "));
+      return {
+        company: normalizeString(item?.company),
+        title: normalizeString(item?.title),
+        dates: dateParts.dates,
+        start_month: normalizeString(item?.start_month) || dateParts.start_month,
+        end_month: normalizeString(item?.end_month) || dateParts.end_month,
+        location: normalizeString(item?.location),
+        bullets: normalizeStringArray(item?.bullets)
+      };
+    });
   }
   function normalizeProjects(items) {
     if (!Array.isArray(items)) {
       return [];
     }
-    return items.map((item) => ({
-      name: normalizeString(item?.name),
-      dates: normalizeDateRange(normalizeString(item?.dates)),
-      bullets: normalizeStringArray(item?.bullets)
-    }));
+    return items.map((item) => {
+      const dateParts = deriveDateParts(item?.dates || [item?.start_month, item?.end_month].filter(Boolean).join(" - "));
+      return {
+        name: normalizeString(item?.name),
+        dates: dateParts.dates,
+        start_month: normalizeString(item?.start_month) || dateParts.start_month,
+        end_month: normalizeString(item?.end_month) || dateParts.end_month,
+        bullets: normalizeStringArray(item?.bullets)
+      };
+    });
   }
   function normalizeEducation(items) {
     if (!Array.isArray(items)) {
       return [];
     }
-    return items.map((item) => ({
-      school: normalizeString(item?.school),
-      degree: normalizeString(item?.degree),
-      dates: normalizeDateRange(normalizeString(item?.dates)),
-      details: normalizeString(item?.details)
-    }));
+    return items.map((item) => {
+      const dateParts = deriveDateParts(item?.dates || [item?.start_month, item?.end_month].filter(Boolean).join(" - "));
+      return {
+        school: normalizeString(item?.school),
+        degree: normalizeString(item?.degree),
+        dates: dateParts.dates,
+        start_month: normalizeString(item?.start_month) || dateParts.start_month,
+        end_month: normalizeString(item?.end_month) || dateParts.end_month,
+        details: normalizeString(item?.details)
+      };
+    });
   }
   return {
     full_name: normalizeString(value.full_name),
@@ -716,7 +877,9 @@ function normalizeTailoredResume(raw) {
     skills: normalizeStringArray(value.skills),
     soft_skills: normalizeStringArray(value.soft_skills),
     languages: normalizeStringArray(value.languages),
-    education: normalizeEducation(value.education)
+    web_presence: normalizeStringArray(value.web_presence),
+    education: normalizeEducation(value.education),
+    certifications: normalizeStringArray(value.certifications)
   };
 }
 
@@ -746,8 +909,55 @@ function resumeHasContent(resume) {
       (Array.isArray(value.skills) && value.skills.length) ||
       (Array.isArray(value.soft_skills) && value.soft_skills.length) ||
       (Array.isArray(value.languages) && value.languages.length) ||
+      (Array.isArray(value.web_presence) && value.web_presence.length) ||
+      (Array.isArray(value.certifications) && value.certifications.length) ||
       (Array.isArray(value.education) && value.education.length)
   );
+}
+
+function postProcessTailoredResume(resume, resumeProfile, targetJobTitle) {
+  const processed = enforceTargetTitleAlignment(normalizeTailoredResume(resume), targetJobTitle);
+  if (!Array.isArray(processed.soft_skills) || !processed.soft_skills.length) {
+    processed.soft_skills = deriveSoftSkillsFromEvidence(
+      [
+        processed.summary,
+        ...(processed.experience || []).flatMap((item) => item.bullets || []),
+        resumeProfile?.raw_text || ""
+      ].join(" ")
+    );
+  }
+  if (!Array.isArray(processed.languages) || !processed.languages.length) {
+    processed.languages = deriveLanguagesFromEvidence(processed, resumeProfile);
+  }
+  if (!Array.isArray(processed.certifications) || !processed.certifications.length) {
+    processed.certifications = Array.isArray(resumeProfile?.certifications)
+      ? resumeProfile.certifications.map((item) => cleanText(item)).filter(Boolean)
+      : [];
+  }
+  if (!Array.isArray(processed.web_presence) || !processed.web_presence.length) {
+    processed.web_presence = deriveWebPresenceFromEvidence(resumeProfile);
+  }
+  const profileEducation = Array.isArray(resumeProfile?.education_records) ? resumeProfile.education_records : [];
+  processed.education = (processed.education || []).map((entry) => {
+    const school = cleanText(entry?.school);
+    const degree = cleanText(entry?.degree);
+    const fallback = profileEducation.find((item) => {
+      const ps = cleanText(item?.school);
+      const pd = cleanText(item?.degree);
+      return (school && ps && school.toLowerCase() === ps.toLowerCase()) || (degree && pd && degree.toLowerCase() === pd.toLowerCase());
+    });
+    if (!fallback) {
+      return entry;
+    }
+    const fallbackParts = deriveDateParts(fallback?.dates || [fallback?.start_month, fallback?.end_month].filter(Boolean).join(" - "));
+    return {
+      ...entry,
+      dates: cleanText(entry?.dates) || fallbackParts.dates,
+      start_month: cleanText(entry?.start_month) || fallbackParts.start_month,
+      end_month: cleanText(entry?.end_month) || fallbackParts.end_month
+    };
+  });
+  return processed;
 }
 
 function isChatGptTimeoutError(error) {
@@ -790,6 +1000,8 @@ async function runResumeTailoring(payload) {
   const useChatGptFileMode = Boolean(payload?.useChatGptFileMode);
   const checkerFeedback = payload?.checkerFeedback || payload?.atsReview || payload?.atsReviewText || [];
   const targetJobTitle = cleanText(payload?.targetJobTitle || payload?.jobFacts?.job_title || "");
+  const targetScore = Math.max(60, Math.min(100, Number(payload?.targetScore) || DEFAULT_TARGET_ATS_SCORE));
+  const maxIterations = Math.max(1, Math.min(8, Number(payload?.maxIterations) || DEFAULT_MAX_ITERATIONS));
   if (!jobDescription) {
     throw new Error("Job description is empty.");
   }
@@ -818,19 +1030,7 @@ async function runResumeTailoring(payload) {
     priorityTerms
   });
   const tailoredRaw = await runChatGptJsonTask(tailorPrompt, { retries: 1, timeoutMs: 240000 });
-  let tailoredResume = enforceTargetTitleAlignment(normalizeTailoredResume(tailoredRaw), targetJobTitle);
-  if (!Array.isArray(tailoredResume.soft_skills) || !tailoredResume.soft_skills.length) {
-    tailoredResume.soft_skills = deriveSoftSkillsFromEvidence(
-      [
-        tailoredResume.summary,
-        ...(tailoredResume.experience || []).flatMap((item) => item.bullets || []),
-        resumeProfile?.raw_text || ""
-      ].join(" ")
-    );
-  }
-  if (!Array.isArray(tailoredResume.languages) || !tailoredResume.languages.length) {
-    tailoredResume.languages = deriveLanguagesFromEvidence(tailoredResume, resumeProfile);
-  }
+  let tailoredResume = postProcessTailoredResume(tailoredRaw, resumeProfile, targetJobTitle);
   if (!resumeHasContent(tailoredResume)) {
     throw new Error("Tailoring completed but returned no usable resume content. Try running again.");
   }
@@ -849,15 +1049,7 @@ async function runResumeTailoring(payload) {
     });
     try {
       const refinedRaw = await runChatGptJsonTask(refinementPrompt, { retries: 0, timeoutMs: 180000 });
-      const refinedResume = enforceTargetTitleAlignment(normalizeTailoredResume(refinedRaw), targetJobTitle);
-      if (!Array.isArray(refinedResume.soft_skills) || !refinedResume.soft_skills.length) {
-        refinedResume.soft_skills = deriveSoftSkillsFromEvidence(
-          [refinedResume.summary, ...(refinedResume.experience || []).flatMap((item) => item.bullets || [])].join(" ")
-        );
-      }
-      if (!Array.isArray(refinedResume.languages) || !refinedResume.languages.length) {
-        refinedResume.languages = deriveLanguagesFromEvidence(refinedResume, resumeProfile);
-      }
+      const refinedResume = postProcessTailoredResume(refinedRaw, resumeProfile, targetJobTitle);
       if (resumeHasContent(refinedResume)) {
         const refinedCoverage = evaluateKeywordCoverage(refinedResume, priorityTerms);
         if (refinedCoverage.missing.length <= coverageReport.missing.length) {
@@ -870,12 +1062,88 @@ async function runResumeTailoring(payload) {
       // Keep primary tailored resume if refinement fails.
     }
   }
-  const missingKeywords = coverageReport.missing.map((item) => item.term).slice(0, 10);
+  const iterationReports = [];
+  let currentResume = tailoredResume;
+  let bestResume = tailoredResume;
+  let bestScoreReport = {
+    ats_score: 0,
+    missing_keywords: coverageReport.missing.map((item) => item.term).slice(0, 12),
+    strengths: [],
+    improvements: [],
+    rationale: ""
+  };
+  for (let index = 0; index < maxIterations; index += 1) {
+    let scoreReport = {
+      ats_score: 0,
+      missing_keywords: [],
+      strengths: [],
+      improvements: [],
+      rationale: ""
+    };
+    try {
+      const scoreRaw = await runChatGptJsonTask(buildScorePrompt({ jobDescription, tailoredResume: currentResume }), {
+        retries: 0,
+        timeoutMs: 120000
+      });
+      scoreReport = normalizeScoreReport(scoreRaw);
+    } catch (_error) {
+      scoreReport = {
+        ...scoreReport,
+        missing_keywords: coverageReport.missing.map((item) => item.term).slice(0, 12),
+        improvements: ["Scoring fallback: prioritize missing coverage terms and ATS clarity."]
+      };
+    }
+    iterationReports.push({
+      iteration: index + 1,
+      ats_score: scoreReport.ats_score,
+      missing_keywords: scoreReport.missing_keywords,
+      improvements: scoreReport.improvements,
+      strengths: scoreReport.strengths,
+      tailored_resume: currentResume
+    });
+    if (scoreReport.ats_score >= bestScoreReport.ats_score) {
+      bestScoreReport = scoreReport;
+      bestResume = currentResume;
+    }
+    if (scoreReport.ats_score >= targetScore || index === maxIterations - 1) {
+      break;
+    }
+    const nextPrompt = buildIterationTailorPrompt({
+      jobDescription,
+      currentResume,
+      scoreReport: {
+        ...scoreReport,
+        coverage_missing: coverageReport.missing.map((item) => item.term).slice(0, 12)
+      },
+      targetJobTitle,
+      priorityTerms,
+      templateGuide
+    });
+    try {
+      const nextRaw = await runChatGptJsonTask(nextPrompt, { retries: 0, timeoutMs: 200000 });
+      const nextResume = postProcessTailoredResume(nextRaw, resumeProfile, targetJobTitle);
+      if (resumeHasContent(nextResume)) {
+        currentResume = nextResume;
+        coverageReport = evaluateKeywordCoverage(currentResume, priorityTerms);
+      } else {
+        break;
+      }
+    } catch (_error) {
+      break;
+    }
+  }
+  const missingKeywords = bestScoreReport.missing_keywords?.length
+    ? bestScoreReport.missing_keywords.slice(0, 10)
+    : coverageReport.missing.map((item) => item.term).slice(0, 10);
   const keywordFocus = priorityTerms.map((item) => item.term).slice(0, 12);
   return {
     ok: true,
-    mode: "single_pass",
-    prompt_strategy: "web-guided-ats-tailoring-v2-coverage",
+    mode: "iterative",
+    prompt_strategy: "web-guided-ats-tailoring-v3-iterative",
+    target_score: targetScore,
+    max_iterations: maxIterations,
+    best_ats_score: bestScoreReport.ats_score || 0,
+    target_achieved: (bestScoreReport.ats_score || 0) >= targetScore,
     keyword_focus: keywordFocus.length ? keywordFocus : jobKeywords.slice(0, 12),
     missing_keywords: missingKeywords,
     coverage_report: {
@@ -883,9 +1151,11 @@ async function runResumeTailoring(payload) {
       missing: coverageReport.missing.slice(0, 20)
     },
     refinement_applied: refinementApplied,
+    score_report: bestScoreReport,
+    iterations: iterationReports,
     rag_chunks: ragChunks.map((chunk) => ({ section: chunk.section, text: chunk.text, score: chunk.score })),
-    tailored_resume: tailoredResume,
-    best_resume: tailoredResume
+    tailored_resume: bestResume,
+    best_resume: bestResume
   };
 }
 

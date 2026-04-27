@@ -35,38 +35,14 @@
       max-width: 98%;
     }
     .contact-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 11px;
-      justify-content: center;
+      display: block;
       margin-bottom: 2px;
       font-size: 10px;
-      align-items: center;
-    }
-    .contact-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .contact-icon {
-      font-weight: 700;
-      font-size: 10px;
-      min-width: 10px;
       text-align: center;
+      line-height: 1.35;
     }
-    .contact-icon.linkedin-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 11px;
-      height: 11px;
-      border: 1px solid #111;
-      border-radius: 1px;
-      font-size: 8px;
-      line-height: 1;
-      font-weight: 700;
-      min-width: 11px;
-    }
+    .contact-line { margin-bottom: 2px; }
+    .contact-line:empty { display: none; }
     .contact-address {
       text-align: center;
       margin-bottom: 7px;
@@ -137,11 +113,10 @@
     <h1>{{FULL_NAME}}</h1>
     <div class="headline">{{HEADLINE}}</div>
     <div class="contact-row">
-      <span class="contact-item"><span class="contact-icon">✉</span><span>{{EMAIL}}</span></span>
-      <span class="contact-item"><span class="contact-icon linkedin-badge">in</span><span>{{LINKEDIN}}</span></span>
-      <span class="contact-item"><span class="contact-icon">☎</span><span>{{PHONE}}</span></span>
+      <div class="contact-line">{{CONTACT_PRIMARY}}</div>
+      <div class="contact-line">{{CONTACT_SECONDARY}}</div>
     </div>
-    <div class="contact-address"><span class="contact-icon">◆</span> {{ADDRESS}}</div>
+    <div class="contact-address">{{ADDRESS}}</div>
 
     <section id="profile-section">
       <h2>Profile</h2>
@@ -173,9 +148,19 @@
       <div class="skills section-block">{{LANGUAGES}}</div>
     </section>
 
+    <section id="web-presence-section">
+      <h2>Web Presence</h2>
+      <div class="section-block">{{WEB_PRESENCE}}</div>
+    </section>
+
     <section id="education-section">
       <h2>Education</h2>
       <div class="section-block">{{EDUCATION}}</div>
+    </section>
+
+    <section id="certifications-section">
+      <h2>Certifications</h2>
+      <div class="section-block">{{CERTIFICATIONS}}</div>
     </section>
   </div>
 </body>
