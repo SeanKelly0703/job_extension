@@ -23,28 +23,31 @@
       font-size: 22px;
       line-height: 1;
       font-weight: 700;
-      text-align: center;
+      text-align: left;
+      color: #0c84d7;
     }
     .headline {
-      margin: 4px auto 4px;
-      color: #1f1f1f;
-      text-align: center;
-      font-style: italic;
+      margin: 4px 0 4px;
+      color: #0c84d7;
+      text-align: left;
+      font-style: normal;
       font-size: 17px;
       line-height: 1.1;
-      max-width: 98%;
+      font-weight: 700;
     }
     .contact-row {
-      display: block;
-      margin-bottom: 2px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 3px;
       font-size: 10px;
-      text-align: center;
       line-height: 1.35;
     }
-    .contact-line { margin-bottom: 2px; }
-    .contact-line:empty { display: none; }
+    .contact-item { display: inline-flex; align-items: center; gap: 4px; }
+    .contact-icon { color: #0c84d7; font-weight: 700; }
     .contact-address {
-      text-align: center;
+      text-align: left;
       margin-bottom: 7px;
       font-size: 10px;
     }
@@ -71,13 +74,24 @@
       font-weight: 700;
       font-size: 11px;
       line-height: 1.1;
+      color: #0c84d7;
+    }
+    .entry-subtitle {
+      font-size: 10px;
+      font-weight: 600;
+      color: #202020;
+      margin-top: 1px;
     }
     .entry-meta {
       color: #2f2f2f;
       font-size: 10px;
       white-space: nowrap;
       line-height: 1.1;
+      display: inline-flex;
+      gap: 10px;
     }
+    .meta-item { display: inline-flex; align-items: center; gap: 3px; }
+    .meta-icon { color: #0c84d7; font-size: 10px; }
     ul {
       margin: 4px 0 0 9px;
       padding: 0;
@@ -113,10 +127,11 @@
     <h1>{{FULL_NAME}}</h1>
     <div class="headline">{{HEADLINE}}</div>
     <div class="contact-row">
-      <div class="contact-line">{{CONTACT_PRIMARY}}</div>
-      <div class="contact-line">{{CONTACT_SECONDARY}}</div>
+      <span class="contact-item"><span class="contact-icon">☎</span><span>{{PHONE}}</span></span>
+      <span class="contact-item"><span class="contact-icon">@</span><span>{{EMAIL}}</span></span>
+      <span class="contact-item"><span class="contact-icon">🔗</span><span>{{LINKEDIN}}</span></span>
     </div>
-    <div class="contact-address">{{ADDRESS}}</div>
+    <div class="contact-address"><span class="contact-icon">📍</span> {{ADDRESS}}</div>
 
     <section id="profile-section">
       <h2>Profile</h2>

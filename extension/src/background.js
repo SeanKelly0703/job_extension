@@ -4,7 +4,7 @@ const CACHE_KEY = "detectedJobsByTab";
 const CHATGPT_TAB_PATTERNS = ["*://chatgpt.com/*", "*://*.chatgpt.com/*"];
 const MAX_RAG_CHUNKS = 8;
 const MAX_PRIORITY_TERMS = 24;
-const DEFAULT_TARGET_ATS_SCORE = 97;
+const DEFAULT_TARGET_ATS_SCORE = 95;
 const DEFAULT_MAX_ITERATIONS = 5;
 const LOW_SIGNAL_TERMS = new Set([
   "program",
@@ -530,7 +530,8 @@ function buildTailorPrompt({
   useChatGptFileMode,
   templateGuide,
   targetJobTitle,
-  priorityTerms
+  priorityTerms,
+  targetScore
 }) {
   const templateHints = resumeProfile?.template || {};
   const sectionOrder = Array.isArray(templateGuide?.section_order) && templateGuide.section_order.length
@@ -571,6 +572,7 @@ function buildTailorPrompt({
   const prompt = [
     "You are a senior ATS resume strategist and recruiter.",
     "Tailor the resume to the job description in a SINGLE PASS using best-practice ATS optimization.",
+    `Primary objective: maximize ATS relevance toward a target score of ${Math.round(Number(targetScore) || DEFAULT_TARGET_ATS_SCORE)} while remaining fully truthful.`,
     "Use this workflow internally before writing:",
     "1) Extract required/preferred keywords, tools, responsibilities, and outcome signals from the job description.",
     "2) Map those requirements to candidate evidence from resume profile and RAG snippets.",
@@ -588,6 +590,12 @@ function buildTailorPrompt({
     "Rewrite quality rules:",
     "- Prefer specific named tools/services over broad buzzwords.",
     "- Keep bullets achievement-first with clear scope and outcome.",
+    "- Start bullets with strong action verbs (e.g., led, architected, delivered, optimized, automated, mentored, coordinated, launched, resolved).",
+    "- Avoid weak phrasing like `responsible for`, `worked on`, or `helped with`; rewrite into clear action + result statements.",
+    "- Match action verbs to role intent (technical leadership, delivery, optimization, collaboration, incident response) and vary them across bullets.",
+    "- Prioritize quantified impact: include concrete metrics where evidence exists (%, time, cost, revenue, latency, throughput, user count, volume).",
+    "- Target quantification density: at least one quantified bullet per role/project, and most bullets should indicate measurable scope or result.",
+    "- If exact numbers are unavailable, use truthful scale signals (e.g., multi-team, enterprise-wide, high-volume, millions of events/day) instead of vague claims.",
     "- Ensure each major JD requirement is represented in summary, experience, projects, or skills when truthful.",
     "- Avoid repetitive language: do not reuse the same opening verb or phrase across consecutive bullets.",
     "- Limit repeated keyword echoing; vary sentence construction while preserving ATS-relevant terms.",
@@ -651,7 +659,8 @@ function buildCoverageRefinementPrompt({
   tailoredResume,
   missingTerms,
   targetJobTitle,
-  sectionOrder
+  sectionOrder,
+  targetScore
 }) {
   const compactResume = {
     full_name: cleanText(tailoredResume?.full_name || ""),
@@ -669,10 +678,16 @@ function buildCoverageRefinementPrompt({
   return [
     "You are an ATS resume optimizer doing a focused refinement pass.",
     "Revise the resume JSON to close missing high-impact ATS terms while preserving truthfulness and readability.",
+    `Refinement target: improve toward ATS score ${Math.round(Number(targetScore) || DEFAULT_TARGET_ATS_SCORE)}.`,
     "Rules:",
     "- Keep all employers, dates, titles, education, and certifications truthful (no fabrication).",
     "- Keep bullets concise and action-oriented.",
+    "- Rewrite weak duty language into action-verb-first impact bullets.",
+    "- Use role-relevant action verbs and avoid repeating the same verb across adjacent bullets.",
     "- Integrate missing terms naturally across summary, skills, and relevant bullets.",
+    "- Strengthen quantified outcomes in weak bullets (convert generic claims into metric-backed impact when evidence exists).",
+    "- Ensure each experience/project entry contains at least one measurable result line when evidence allows.",
+    "- When hard numbers are missing, preserve truth by using explicit scope indicators rather than invented metrics.",
     "- Reduce repetitive wording by varying bullet starters and sentence structure.",
     "- Do not repeat the same multi-word phrase across multiple bullets unless strictly necessary.",
     "- Keep `soft_skills` and `languages` populated from evidence (do not invent unsupported fluency claims).",
@@ -738,7 +753,8 @@ function buildIterationTailorPrompt({
   scoreReport,
   targetJobTitle,
   priorityTerms,
-  templateGuide
+  templateGuide,
+  targetScore
 }) {
   const sectionOrder = Array.isArray(templateGuide?.section_order) && templateGuide.section_order.length
     ? templateGuide.section_order
@@ -746,9 +762,14 @@ function buildIterationTailorPrompt({
   return [
     "You are a senior ATS resume strategist running an iterative improvement pass.",
     "Improve the current tailored resume to increase ATS score while keeping all content truthful and evidence-based.",
+    `Current pass goal: move resume closer to ATS target score ${Math.round(Number(targetScore) || DEFAULT_TARGET_ATS_SCORE)}.`,
     "Priorities for this pass:",
     "- Close missing keywords and weak requirement matches naturally.",
     "- Improve wording precision and measurable impact.",
+    "- Upgrade generic duty statements to strong action-verb-led achievements.",
+    "- Increase role-relevant action verb coverage while keeping verb variety.",
+    "- Replace weak, generic bullets with quantified impact statements where evidence supports it.",
+    "- Increase metric density and vary action verbs to avoid repetitive phrasing.",
     "- Remove repetitive wording patterns and diversify phrasing across bullets and summary.",
     "- Keep parser-friendly formatting and section clarity.",
     "- Preserve date consistency: `MMM YYYY - MMM YYYY` or `MMM YYYY - Present`.",
@@ -759,6 +780,8 @@ function buildIterationTailorPrompt({
     "- Never fabricate employers, dates, titles, degrees, certifications, tools, or metrics.",
     "- Do not add unsupported technologies or role claims.",
     "- Avoid repeating identical opening words in adjacent bullets.",
+    "- Do not use weak openers like `Responsible for` unless quoting source text; prefer direct action verbs.",
+    "- Prefer measurable outcomes over generic responsibility statements whenever truthful evidence exists.",
     "",
     "Current ATS score report JSON:",
     JSON.stringify(scoreReport, null, 2),
@@ -1002,6 +1025,7 @@ async function runResumeTailoring(payload) {
   const targetJobTitle = cleanText(payload?.targetJobTitle || payload?.jobFacts?.job_title || "");
   const targetScore = Math.max(60, Math.min(100, Number(payload?.targetScore) || DEFAULT_TARGET_ATS_SCORE));
   const maxIterations = Math.max(1, Math.min(8, Number(payload?.maxIterations) || DEFAULT_MAX_ITERATIONS));
+  const isSinglePass = maxIterations <= 1;
   if (!jobDescription) {
     throw new Error("Job description is empty.");
   }
@@ -1027,21 +1051,23 @@ async function runResumeTailoring(payload) {
     useChatGptFileMode,
     templateGuide,
     targetJobTitle,
-    priorityTerms
+    priorityTerms,
+    targetScore
   });
-  const tailoredRaw = await runChatGptJsonTask(tailorPrompt, { retries: 1, timeoutMs: 240000 });
+  const tailoredRaw = await runChatGptJsonTask(tailorPrompt, { retries: isSinglePass ? 0 : 1, timeoutMs: 240000 });
   let tailoredResume = postProcessTailoredResume(tailoredRaw, resumeProfile, targetJobTitle);
   if (!resumeHasContent(tailoredResume)) {
     throw new Error("Tailoring completed but returned no usable resume content. Try running again.");
   }
   let coverageReport = evaluateKeywordCoverage(tailoredResume, priorityTerms);
   let refinementApplied = false;
-  if (shouldRunCoverageRefinement(coverageReport)) {
+  if (!isSinglePass && shouldRunCoverageRefinement(coverageReport)) {
     const refinementPrompt = buildCoverageRefinementPrompt({
       jobDescription,
       tailoredResume,
       missingTerms: coverageReport.missing.slice(0, 10).map((item) => item.term),
       targetJobTitle,
+      targetScore,
       sectionOrder:
         templateGuide?.section_order && Array.isArray(templateGuide.section_order)
           ? templateGuide.section_order
@@ -1061,6 +1087,29 @@ async function runResumeTailoring(payload) {
     } catch (_error) {
       // Keep primary tailored resume if refinement fails.
     }
+  }
+  if (isSinglePass) {
+    const keywordFocus = priorityTerms.map((item) => item.term).slice(0, 12);
+    const missingKeywords = coverageReport.missing.map((item) => item.term).slice(0, 10);
+    return {
+      ok: true,
+      mode: "single_pass_targeted",
+      prompt_strategy: "web-guided-ats-tailoring-v3-single-pass",
+      target_score: targetScore,
+      max_iterations: maxIterations,
+      keyword_focus: keywordFocus.length ? keywordFocus : jobKeywords.slice(0, 12),
+      missing_keywords: missingKeywords,
+      coverage_report: {
+        present: coverageReport.present.slice(0, 20),
+        missing: coverageReport.missing.slice(0, 20)
+      },
+      refinement_applied: false,
+      score_report: null,
+      iterations: [],
+      rag_chunks: ragChunks.map((chunk) => ({ section: chunk.section, text: chunk.text, score: chunk.score })),
+      tailored_resume: tailoredResume,
+      best_resume: tailoredResume
+    };
   }
   const iterationReports = [];
   let currentResume = tailoredResume;
@@ -1117,7 +1166,8 @@ async function runResumeTailoring(payload) {
       },
       targetJobTitle,
       priorityTerms,
-      templateGuide
+      templateGuide,
+      targetScore
     });
     try {
       const nextRaw = await runChatGptJsonTask(nextPrompt, { retries: 0, timeoutMs: 200000 });
@@ -1138,7 +1188,7 @@ async function runResumeTailoring(payload) {
   const keywordFocus = priorityTerms.map((item) => item.term).slice(0, 12);
   return {
     ok: true,
-    mode: "iterative",
+    mode: maxIterations <= 1 ? "single_pass_targeted" : "iterative",
     prompt_strategy: "web-guided-ats-tailoring-v3-iterative",
     target_score: targetScore,
     max_iterations: maxIterations,

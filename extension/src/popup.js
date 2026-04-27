@@ -364,24 +364,27 @@ function buildResumeBody(tailoredResume, sourceTemplate) {
   const contact = resume.contact || {};
   const webPresenceValues = Array.isArray(resume.web_presence) ? resume.web_presence : [];
   const normalizedWebPresence = webPresenceValues.map((item) => normalizeText(item)).filter(Boolean);
-  const contactPrimaryLine = [
-    normalizeText(contact.email) ? `Email: ${normalizeText(contact.email)}` : "",
-    formatPhoneForDisplay(contact.phone) ? `Phone Number: ${formatPhoneForDisplay(contact.phone)}` : ""
-  ].filter(Boolean).join(" | ");
-  const contactSecondaryLine = [
-    normalizeText(contact.linkedin) ? `LinkedIn: ${normalizeText(contact.linkedin)}` : "",
-    normalizeText(contact.github) ? `GitHub: ${normalizeText(contact.github)}` : "",
-    normalizeText(contact.portfolio) ? `Portfolio: ${normalizeText(contact.portfolio)}` : ""
-  ].filter(Boolean).join(" | ");
+  const contactItemsHtml = [
+    normalizeText(contact.phone)
+      ? `<span class="contact-item"><span class="contact-icon">☎</span><span>${escapeHtml(formatPhoneForDisplay(contact.phone))}</span></span>`
+      : "",
+    normalizeText(contact.email)
+      ? `<span class="contact-item"><span class="contact-icon">@</span><span>${escapeHtml(normalizeText(contact.email))}</span></span>`
+      : "",
+    normalizeText(contact.linkedin)
+      ? `<span class="contact-item"><span class="contact-icon">🔗</span><span>${escapeHtml(normalizeText(contact.linkedin))}</span></span>`
+      : ""
+  ].filter(Boolean).join("");
   const contactAddress = normalizeText(contact.address);
   const expHtml = (resume.experience || [])
     .map(
       (item) => `
       <div class="entry">
         <div class="entry-head">
-          <div class="entry-title">${escapeHtml(item.title || "")}${item.company ? `, ${escapeHtml(item.company)}` : ""}</div>
-          <div class="entry-meta">${escapeHtml(formatConsistentDateRange(item.dates || ""))}${item.location ? ` | ${escapeHtml(item.location)}` : ""}</div>
+          <div class="entry-title">${escapeHtml(item.company || item.title || "")}</div>
+          <div class="entry-meta">${buildEntryMetaHtml(item.dates || "", item.location || "")}</div>
         </div>
+        ${item.title && item.company ? `<div class="entry-subtitle">${escapeHtml(item.title)}</div>` : ""}
         <ul>${(item.bullets || []).map((bullet) => `<li>${escapeHtml(bullet)}</li>`).join("")}</ul>
       </div>`
     )
@@ -392,7 +395,7 @@ function buildResumeBody(tailoredResume, sourceTemplate) {
       <div class="entry">
         <div class="entry-head">
           <div class="entry-title">${escapeHtml(item.name || "")}</div>
-          <div class="entry-meta">${escapeHtml(formatConsistentDateRange(item.dates || ""))}</div>
+          <div class="entry-meta">${buildEntryMetaHtml(item.dates || "", "")}</div>
         </div>
         <ul>${(item.bullets || []).map((bullet) => `<li>${escapeHtml(bullet)}</li>`).join("")}</ul>
       </div>`
@@ -403,9 +406,10 @@ function buildResumeBody(tailoredResume, sourceTemplate) {
       (item) => `
       <div class="entry">
         <div class="entry-head">
-          <div class="entry-title">${escapeHtml(item.school || "")}${item.degree ? `, ${escapeHtml(item.degree)}` : ""}</div>
-          <div class="entry-meta">${escapeHtml(formatConsistentDateRange(item.dates || ""))}</div>
+          <div class="entry-title">${escapeHtml(item.school || "")}</div>
+          <div class="entry-meta">${buildEntryMetaHtml(item.dates || "", "")}</div>
         </div>
+        ${item.degree ? `<div class="entry-subtitle">${escapeHtml(item.degree)}</div>` : ""}
         ${item.details ? `<div>${escapeHtml(item.details)}</div>` : ""}
       </div>`
     )
@@ -431,16 +435,21 @@ function buildResumeBody(tailoredResume, sourceTemplate) {
     @page { size: A4; margin: 14mm; }
     body { font-family: ${fontFamily}; color: #111; margin: 0; font-size: ${style.bodyFontSizePx}px; line-height: ${style.bodyLineHeight}; background: #fff; }
     .resume-root { max-width: 860px; margin: 0 auto; padding: ${style.pagePadding}; }
-    h1 { margin: 0; font-size: ${style.nameFontSizePx}px; line-height: 1; font-weight: 700; text-align: center; }
+    h1 { margin: 0; font-size: ${style.nameFontSizePx}px; line-height: 1; font-weight: 700; text-align: left; color: #0c84d7; }
     h2 { margin: ${style.sectionHeaderTopMarginPx}px 0 ${style.sectionHeaderBottomMarginPx}px; font-size: ${style.sectionHeaderFontSizePx}px; font-weight: 700; border-bottom: ${style.sectionDividerThicknessPx}px solid #222; text-transform: uppercase; letter-spacing: 0; line-height: 1.05; }
-    .headline { margin: ${style.headlineTopMarginPx}px auto ${style.headlineBottomMarginPx}px; color: #1f1f1f; text-align: center; font-style: italic; font-size: ${style.headlineFontSizePx}px; line-height: 1.1; max-width: 98%; }
-    .contact-row { display: block; margin-bottom: 2px; font-size: ${style.bodyFontSizePx}px; text-align: center; line-height: 1.35; }
+    .headline { margin: ${style.headlineTopMarginPx}px 0 ${style.headlineBottomMarginPx}px; color: #0c84d7; text-align: left; font-style: normal; font-size: ${style.headlineFontSizePx}px; line-height: 1.1; font-weight: 700; }
+    .contact-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 3px; font-size: ${style.bodyFontSizePx}px; line-height: 1.35; }
     .contact-line { margin-bottom: 2px; }
-    .contact-address { text-align: center; margin-bottom: ${style.contactAddressBottomMarginPx}px; font-size: ${style.bodyFontSizePx}px; }
+    .contact-item { display: inline-flex; align-items: center; gap: 4px; }
+    .contact-icon { color: #0c84d7; font-weight: 700; font-size: ${style.contactIconFontSizePx}px; }
+    .contact-address { text-align: left; margin-bottom: ${style.contactAddressBottomMarginPx}px; font-size: ${style.bodyFontSizePx}px; }
     .entry { margin-bottom: ${style.entryBottomMarginPx}px; page-break-inside: avoid; }
     .entry-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
-    .entry-title { font-weight: 700; font-size: ${style.entryTitleFontSizePx}px; line-height: 1.1; }
-    .entry-meta { color: #2f2f2f; font-size: ${style.entryMetaFontSizePx}px; white-space: nowrap; line-height: 1.1; }
+    .entry-title { font-weight: 700; font-size: ${style.entryTitleFontSizePx}px; line-height: 1.1; color: #0c84d7; }
+    .entry-subtitle { font-size: ${style.entryMetaFontSizePx}px; font-weight: 600; color: #202020; margin-top: 1px; }
+    .entry-meta { color: #2f2f2f; font-size: ${style.entryMetaFontSizePx}px; white-space: nowrap; line-height: 1.1; display: inline-flex; gap: 10px; }
+    .meta-item { display: inline-flex; align-items: center; gap: 3px; }
+    .meta-icon { color: #0c84d7; font-size: ${style.entryMetaFontSizePx}px; }
     ul { margin: 4px 0 0 ${style.bulletIndentPx}px; padding: 0; }
     li { margin-bottom: 3px; line-height: 1.28; }
     p { margin: 0 0 5px; line-height: 1.28; }
@@ -454,8 +463,8 @@ function buildResumeBody(tailoredResume, sourceTemplate) {
   <div id="tailored-resume-root" class="resume-root">
     <h1>${escapeHtml(resume.full_name || "Candidate Name")}</h1>
     ${resume.headline ? `<div class="headline">${escapeHtml(resume.headline)}</div>` : ""}
-    ${(contactPrimaryLine || contactSecondaryLine) ? `<div class="contact-row">${contactPrimaryLine ? `<div class="contact-line">${escapeHtml(contactPrimaryLine)}</div>` : ""}${contactSecondaryLine ? `<div class="contact-line">${escapeHtml(contactSecondaryLine)}</div>` : ""}</div>` : ""}
-    ${contactAddress ? `<div class="contact-address">${escapeHtml(contactAddress)}</div>` : ""}
+    ${contactItemsHtml ? `<div class="contact-row">${contactItemsHtml}</div>` : ""}
+    ${contactAddress ? `<div class="contact-address"><span class="contact-icon">📍</span> ${escapeHtml(contactAddress)}</div>` : ""}
     ${resume.summary ? `<h2>Profile</h2><div class="summary-block">${profileHtml}</div>` : ""}
     ${expHtml ? `<h2>Professional Experience</h2><div class="section-block">${expHtml}</div>` : ""}
     ${projectHtml ? `<h2>Projects</h2><div class="section-block">${projectHtml}</div>` : ""}
@@ -518,15 +527,28 @@ function formatConsistentDateRange(value) {
   return parts.join(" - ");
 }
 
+function buildEntryMetaHtml(dates, location = "") {
+  const dateText = formatConsistentDateRange(dates || "");
+  const locationText = normalizeText(location || "");
+  if (!dateText && !locationText) {
+    return "";
+  }
+  return `
+    ${dateText ? `<span class="meta-item"><span class="meta-icon">🗓</span>${escapeHtml(dateText)}</span>` : ""}
+    ${locationText ? `<span class="meta-item"><span class="meta-icon">📍</span>${escapeHtml(locationText)}</span>` : ""}
+  `;
+}
+
 function buildExperienceSectionHtml(resume) {
   return (resume?.experience || [])
     .map(
       (item) => `
       <div class="entry">
         <div class="entry-head">
-          <div class="entry-title">${escapeHtml(item.title || "")}${item.company ? `, ${escapeHtml(item.company)}` : ""}</div>
-          <div class="entry-meta">${escapeHtml(formatConsistentDateRange(item.dates || ""))}${item.location ? ` | ${escapeHtml(item.location)}` : ""}</div>
+          <div class="entry-title">${escapeHtml(item.company || item.title || "")}</div>
+          <div class="entry-meta">${buildEntryMetaHtml(item.dates || "", item.location || "")}</div>
         </div>
+        ${item.title && item.company ? `<div class="entry-subtitle">${escapeHtml(item.title)}</div>` : ""}
         <ul>${(item.bullets || []).map((bullet) => `<li>${escapeHtml(bullet)}</li>`).join("")}</ul>
       </div>`
     )
@@ -540,7 +562,7 @@ function buildProjectsSectionHtml(resume) {
       <div class="entry">
         <div class="entry-head">
           <div class="entry-title">${escapeHtml(item.name || "")}</div>
-          <div class="entry-meta">${escapeHtml(formatConsistentDateRange(item.dates || ""))}</div>
+          <div class="entry-meta">${buildEntryMetaHtml(item.dates || "", "")}</div>
         </div>
         <ul>${(item.bullets || []).map((bullet) => `<li>${escapeHtml(bullet)}</li>`).join("")}</ul>
       </div>`
@@ -578,9 +600,10 @@ function buildEducationSectionHtml(resume) {
       (item) => `
       <div class="entry">
         <div class="entry-head">
-          <div class="entry-title">${escapeHtml(item.school || "")}${item.degree ? `, ${escapeHtml(item.degree)}` : ""}</div>
-          <div class="entry-meta">${escapeHtml(formatConsistentDateRange(item.dates || ""))}</div>
+          <div class="entry-title">${escapeHtml(item.school || "")}</div>
+          <div class="entry-meta">${buildEntryMetaHtml(item.dates || "", "")}</div>
         </div>
+        ${item.degree ? `<div class="entry-subtitle">${escapeHtml(item.degree)}</div>` : ""}
         ${item.details ? `<div>${escapeHtml(item.details)}</div>` : ""}
       </div>`
     )
@@ -1154,7 +1177,7 @@ async function runResumeTailorFlow() {
     address: normalizeText(resumeProfile?.contact?.address || lastTemplateFallbackContact.address)
   };
   const templateGuide = await loadTemplateGuideFromProjectTemplate();
-  setStatus("Running iterative ATS tailoring on ChatGPT (target: 97)...", "info");
+  setStatus("Running iterative ATS tailoring (target: 95)...", "info");
   const normalizedFacts = normalizeFacts(lastExtractedFacts || {});
   const result = await new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
@@ -1166,7 +1189,7 @@ async function runResumeTailorFlow() {
           templateGuide,
           jobFacts: normalizedFacts,
           targetJobTitle: normalizedFacts.job_title,
-          targetScore: 97,
+          targetScore: 95,
           maxIterations: 5
         }
       },
