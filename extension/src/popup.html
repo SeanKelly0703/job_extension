@@ -5,367 +5,92 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Resume Tailor</title>
     <style>
-      :root {
-        --bg: #f4f6fb;
-        --surface: #ffffff;
-        --text: #121826;
-        --muted: #6b7280;
-        --border: #d8dce6;
-        --accent: #2563eb;
-        --accent-strong: #1e4fcc;
-        --success-bg: #eafaf1;
-        --success-text: #0b6b35;
-        --error-bg: #fdecec;
-        --error-text: #b42318;
-      }
-
-      body.dark {
-        --bg: #0f172a;
-        --surface: #111827;
-        --text: #e5e7eb;
-        --muted: #94a3b8;
-        --border: #334155;
-        --accent: #3b82f6;
-        --accent-strong: #2563eb;
-        --success-bg: #0f2f1f;
-        --success-text: #86efac;
-        --error-bg: #3a1114;
-        --error-text: #fda4af;
-      }
-
-      * { box-sizing: border-box; }
       body {
         margin: 0;
         width: 390px;
-        background: var(--bg);
-        color: var(--text);
+        background: #f4f6fb;
+        color: #121826;
         font-family: "Segoe UI", Arial, sans-serif;
       }
-
-      .app {
-        padding: 14px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-
+      .app { padding: 14px; }
       .card {
-        background: var(--surface);
-        border: 1px solid var(--border);
+        background: #fff;
+        border: 1px solid #d8dce6;
         border-radius: 12px;
         padding: 12px;
       }
-
-      .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      h3 {
-        margin: 0;
-        font-size: 15px;
-      }
-
-      .muted { color: var(--muted); font-size: 12px; }
-
-      .row {
-        display: flex;
-        gap: 8px;
-      }
-
-      label {
-        display: block;
-        font-size: 12px;
-        color: var(--muted);
-        margin-bottom: 6px;
-      }
-
-      input, textarea {
+      h3 { margin: 0 0 10px; font-size: 15px; }
+      label { display: block; font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+      textarea {
         width: 100%;
-        border: 1px solid var(--border);
-        background: transparent;
-        color: var(--text);
+        min-height: 190px;
+        resize: vertical;
+        border: 1px solid #d8dce6;
         border-radius: 8px;
         padding: 8px 10px;
+        font: inherit;
+        box-sizing: border-box;
       }
-
-      textarea {
-        min-height: 170px;
-        resize: vertical;
-      }
-
+      .actions { display: flex; gap: 8px; margin-top: 10px; }
       .btn {
-        border: 1px solid var(--border);
-        background: var(--surface);
-        color: var(--text);
+        border: 1px solid #d8dce6;
+        background: #fff;
+        color: #121826;
         border-radius: 8px;
         padding: 8px 10px;
         cursor: pointer;
         font-size: 12px;
       }
-
-      .btn:hover { border-color: var(--accent); }
       .btn.primary {
-        background: var(--accent);
+        background: #2563eb;
         color: #fff;
-        border-color: var(--accent);
+        border-color: #2563eb;
       }
-      .btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
-
-      .status {
-        margin-top: 10px;
-        padding: 8px 10px;
-        border-radius: 8px;
-        font-size: 12px;
-        white-space: pre-wrap;
-        border: 1px solid transparent;
-      }
-      .status.info {
-        background: transparent;
-        color: var(--muted);
-        border-color: var(--border);
-      }
-      .status.success {
-        background: var(--success-bg);
-        color: var(--success-text);
-      }
-      .status.error {
-        background: var(--error-bg);
-        color: var(--error-text);
-      }
-
       .footer {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-top: 8px;
       }
-
       .pill {
         font-size: 11px;
-        border: 1px solid var(--border);
+        border: 1px solid #d8dce6;
         border-radius: 999px;
         padding: 3px 8px;
-        color: var(--muted);
+        color: #6b7280;
       }
-
-      .recent-jobs {
+      .status {
         margin-top: 10px;
-        border-top: 1px solid var(--border);
-        padding-top: 10px;
-      }
-
-      .recent-jobs-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-      }
-
-      .recent-jobs-list {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-
-      .recent-job-item {
-        width: 100%;
-        text-align: left;
-        font-size: 12px;
-      }
-
-      .recent-job-title {
-        display: block;
-        color: var(--text);
-        font-weight: 600;
-      }
-
-      .recent-job-meta {
-        display: block;
-        color: var(--muted);
-        margin-top: 2px;
-      }
-
-      .facts-panel {
-        margin-top: 10px;
-        margin-bottom: 2px;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 10px;
-        background: color-mix(in srgb, var(--surface) 92%, var(--bg) 8%);
-      }
-
-      .facts-panel-title {
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        margin-bottom: 8px;
-        color: var(--text);
-      }
-
-      .facts-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px 10px;
-      }
-
-      .facts-item {
-        min-width: 0;
-      }
-
-      .facts-label {
-        display: block;
-        font-size: 11px;
-        color: var(--muted);
-        margin-bottom: 2px;
-      }
-
-      .facts-value {
-        display: block;
-        font-size: 12px;
-        color: var(--text);
-        word-break: break-word;
-      }
-
-      .tailor-panel {
-        margin-top: 10px;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 10px;
-      }
-
-      .tailor-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-      }
-
-      .tailor-grid .field {
-        min-width: 0;
-      }
-
-      .tailor-grid input[type="number"] {
-        width: 100%;
-      }
-
-      .tailor-result {
-        margin-top: 8px;
-        padding: 8px;
-        border: 1px dashed var(--border);
+        padding: 8px 10px;
         border-radius: 8px;
         font-size: 12px;
+        white-space: pre-wrap;
+        border: 1px solid #d8dce6;
+        color: #6b7280;
       }
-
-      .tailor-kv {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 4px 8px;
-      }
-
-      .tailor-kv strong {
-        color: var(--muted);
-      }
-
-      .tailor-actions {
-        margin-top: 8px;
-        display: flex;
-        gap: 8px;
-      }
-
-      .tailor-preview {
-        margin-top: 8px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        overflow: hidden;
-        background: #fff;
-      }
-
-      .tailor-preview iframe {
-        width: 100%;
-        height: 260px;
-        border: 0;
-        display: block;
-      }
-
+      .status.success { background: #eafaf1; color: #0b6b35; border-color: transparent; }
+      .status.error { background: #fdecec; color: #b42318; border-color: transparent; }
+      #tailorPreview { display: none; }
     </style>
   </head>
   <body>
     <div class="app">
-      <div class="card header">
-        <div>
-          <h3>Job Description Scraper</h3>
-          <div class="muted">Tailor resume with ATS-focused iterations</div>
-        </div>
-        <button id="themeToggle" class="btn" title="Toggle theme">Dark</button>
-      </div>
-
       <div class="card">
-        <label for="apiBase">API URL</label>
-        <div class="row">
-          <input id="apiBase" type="text" placeholder="http://127.0.0.1:8000" />
-          <button id="saveApi" class="btn">Save</button>
+        <h3>Resume Tailor</h3>
+        <label for="description">Job Description</label>
+        <textarea id="description" placeholder="Paste job description here..."></textarea>
+        <div class="actions">
+          <button id="sendBtn" class="btn">Send to Server</button>
+          <button id="tailorExportBtn" class="btn primary">Tailor + Export PDF</button>
         </div>
-      </div>
-
-      <div class="card">
-        <div class="row">
-          <button id="extractBtn" class="btn">Extract</button>
-          <button id="extractFactsBtn" class="btn">Extract via ChatGPT</button>
-          <button id="sendBtn" class="btn primary">Send Job</button>
-        </div>
-        <div id="factsPanel" class="facts-panel">
-          <div class="facts-panel-title">From ChatGPT</div>
-          <div class="facts-grid">
-            <div class="facts-item">
-              <span class="facts-label">Job Title</span>
-              <span id="factJobTitle" class="facts-value">Not found</span>
-            </div>
-            <div class="facts-item">
-              <span class="facts-label">Company</span>
-              <span id="factCompany" class="facts-value">Not found</span>
-            </div>
-            <div class="facts-item">
-              <span class="facts-label">Salary</span>
-              <span id="factSalary" class="facts-value">Not found</span>
-            </div>
-            <div class="facts-item">
-              <span class="facts-label">Location</span>
-              <span id="factLocation" class="facts-value">Not found</span>
-            </div>
-          </div>
-        </div>
-        <div class="tailor-panel">
-          <div class="facts-panel-title">Resume Tailoring</div>
-          <div class="muted">Resume source: <code>extension/src/resume.json</code></div>
-          <div class="muted" style="margin-top: 8px;">
-            Single-pass tailoring prompt (no iteration loop).
-          </div>
-          <div class="tailor-actions">
-            <button id="tailorExportBtn" class="btn">Tailor from resume.json</button>
-            <button id="exportPreviewBtn" class="btn primary" disabled>Export PDF</button>
-          </div>
-          <div id="tailorResult" class="tailor-result muted">No resume tailoring run yet.</div>
-          <div id="tailorPreview" class="tailor-preview" style="display:none;">
-            <iframe id="tailorPreviewFrame" title="Tailored resume preview"></iframe>
-          </div>
-        </div>
-        <label for="description" style="margin-top: 10px;">Job Description</label>
-        <textarea id="description" placeholder="Extracted job description will appear here..."></textarea>
         <div class="footer">
           <span id="charCount" class="pill">0 chars</span>
-          <span class="muted">Review before tailoring</span>
+          <span style="font-size:11px;color:#6b7280;">One-click export</span>
         </div>
-        <div id="status" class="status info">Ready.</div>
-        <div class="recent-jobs">
-          <div class="recent-jobs-header">
-            <span class="muted">Recent Jobs</span>
-            <button id="refreshRecentBtn" class="btn">Refresh</button>
-          </div>
-          <div id="recentJobsList" class="recent-jobs-list muted">No recent jobs yet.</div>
-        </div>
+        <div id="status" class="status">Ready.</div>
       </div>
     </div>
+    <div id="tailorPreview"><iframe id="tailorPreviewFrame" title="Tailored resume preview"></iframe></div>
     <script src="./popup.js"></script>
   </body>
 </html>

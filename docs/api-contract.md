@@ -9,6 +9,10 @@ Returns recently ingested jobs in descending `created_at` order.
 ### Query Params
 
 - `limit` (optional): integer from `1` to `100`, default `20`.
+- `search` (optional): text search across title/company/description.
+- `company` (optional): exact company filter (case-insensitive).
+- `sort_by` (optional): `created_at` | `company` | `title` (default `created_at`).
+- `sort_order` (optional): `asc` | `desc` (default `desc`).
 
 ### Response (200)
 
@@ -17,6 +21,10 @@ Returns recently ingested jobs in descending `created_at` order.
   "items": [
     {
       "job_id": "job_abc123def456",
+      "title": "Software Engineer",
+      "company": "Example Corp",
+      "salary": "$120,000",
+      "location": "Remote",
       "source_url": "https://www.linkedin.com/jobs/view/123",
       "page_title": "Software Engineer - Example Corp",
       "source_site": "linkedin.com",
@@ -36,6 +44,10 @@ Accepts scraped job description payload from the extension.
 ```json
 {
   "source_url": "https://www.linkedin.com/jobs/view/123",
+  "title": "Software Engineer",
+  "company": "Example Corp",
+  "salary": "$120,000",
+  "location": "Remote",
   "page_title": "Software Engineer - Example Corp",
   "source_site": "linkedin.com",
   "job_description": "We are looking for ...",
@@ -52,6 +64,7 @@ Accepts scraped job description payload from the extension.
 {
   "job_id": "job_abc123def456",
   "status": "accepted",
+  "was_created": true,
   "pipeline_status": {
     "state": "not_started",
     "ats_score": 0,
@@ -61,6 +74,35 @@ Accepts scraped job description payload from the extension.
   "created_at": "2026-04-23T10:00:02.120532+00:00"
 }
 ```
+
+If a job with the same normalized company already exists, the endpoint returns:
+
+```json
+{
+  "job_id": "job_existing123",
+  "status": "already_exists",
+  "was_created": false,
+  "pipeline_status": {
+    "state": "not_started",
+    "ats_score": 0,
+    "ats_threshold": 80,
+    "iteration": 0
+  },
+  "created_at": "2026-04-23T10:00:02.120532+00:00"
+}
+```
+
+## POST `/api/v1/jobs`
+
+Creates a new job record (manual add from frontend).
+
+## PUT `/api/v1/jobs/{job_id}`
+
+Updates an existing job record.
+
+## DELETE `/api/v1/jobs/{job_id}`
+
+Deletes a job record.
 
 ## POST `/api/v1/pipeline/{job_id}/start`
 

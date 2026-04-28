@@ -19,6 +19,21 @@ const exportPreviewBtn = document.getElementById("exportPreviewBtn");
 const tailorResultEl = document.getElementById("tailorResult");
 const tailorPreviewEl = document.getElementById("tailorPreview");
 const tailorPreviewFrameEl = document.getElementById("tailorPreviewFrame");
+const jobsSearchInputEl = document.getElementById("jobsSearchInput");
+const jobsCompanyFilterInputEl = document.getElementById("jobsCompanyFilterInput");
+const jobsSortByEl = document.getElementById("jobsSortBy");
+const jobsSortOrderEl = document.getElementById("jobsSortOrder");
+const jobsFilterBtnEl = document.getElementById("jobsFilterBtn");
+const jobsResetBtnEl = document.getElementById("jobsResetBtn");
+const jobsAddBtnEl = document.getElementById("jobsAddBtn");
+const jobTitleInputEl = document.getElementById("jobTitleInput");
+const jobCompanyInputEl = document.getElementById("jobCompanyInput");
+const jobLocationInputEl = document.getElementById("jobLocationInput");
+const jobSalaryInputEl = document.getElementById("jobSalaryInput");
+const jobsTableBodyEl = document.getElementById("jobsTableBody");
+const jobsPrevPageBtnEl = document.getElementById("jobsPrevPageBtn");
+const jobsNextPageBtnEl = document.getElementById("jobsNextPageBtn");
+const jobsPageInfoEl = document.getElementById("jobsPageInfo");
 
 let lastPayload = null;
 let lastExtractedFacts = null;
@@ -54,11 +69,17 @@ const RESUME_STYLE_TUNING = {
 };
 
 function setStatus(message, type = "info") {
+  if (!statusEl) {
+    return;
+  }
   statusEl.textContent = message;
   statusEl.className = `status ${type}`;
 }
 
 function updateCharCount() {
+  if (!charCountEl) {
+    return;
+  }
   const count = (descriptionEl.value || "").trim().length;
   charCountEl.textContent = `${count} chars`;
 }
@@ -121,6 +142,9 @@ function normalizeFacts(facts) {
 }
 
 function renderFacts(facts) {
+  if (!factsPanelEl || !factJobTitleEl || !factCompanyEl || !factSalaryEl || !factLocationEl) {
+    return;
+  }
   const normalized = normalizeFacts(facts || {});
   factsPanelEl.style.display = "block";
   factJobTitleEl.textContent = normalized.job_title || "Not found";
@@ -329,6 +353,9 @@ async function loadTemplateGuideFromProjectTemplate() {
 }
 
 function renderTailorResult(result) {
+  if (!tailorResultEl) {
+    return;
+  }
   if (!result) {
     tailorResultEl.classList.add("muted");
     tailorResultEl.textContent = "No resume tailoring run yet.";
@@ -1335,9 +1362,15 @@ function downloadTailoredResumeHtml(html) {
 function renderTailoredResumePreview(result, sourceTemplate) {
   const html = buildResumeHtml(result?.best_resume, sourceTemplate, lastTemplateHtml);
   lastPreviewHtml = html;
-  tailorPreviewFrameEl.srcdoc = html;
-  tailorPreviewEl.style.display = "block";
-  exportPreviewBtn.disabled = false;
+  if (tailorPreviewFrameEl) {
+    tailorPreviewFrameEl.srcdoc = html;
+  }
+  if (tailorPreviewEl) {
+    tailorPreviewEl.style.display = "block";
+  }
+  if (exportPreviewBtn) {
+    exportPreviewBtn.disabled = false;
+  }
 }
 
 function exportTailoredResumeToPdf(html) {
@@ -1559,9 +1592,14 @@ async function extractDescription() {
 }
 
 async function submitDescription() {
+  const facts = normalizeFacts(lastExtractedFacts || {});
   const payload = {
     ...(lastPayload || {}),
-    job_description: descriptionEl.value
+    job_description: descriptionEl.value,
+    title: facts.job_title || "",
+    company: facts.company || "",
+    salary: facts.salary || "",
+    location: facts.location || ""
   };
 
   return new Promise((resolve, reject) => {
@@ -1588,159 +1626,460 @@ async function saveApiBase() {
   });
 }
 
-async function fetchRecentJobs(limit = 5) {
+async function fetchRecentJobs(limit = 20, options = {}) {
   return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage({ type: "GET_RECENT_JOBS", limit }, (response) => {
+    chrome.runtime.sendMessage(
+      {
+        type: "GET_RECENT_JOBS",
+        limit,
+        search: options.search || "",
+        company: options.company || "",
+        sortBy: options.sortBy || "",
+        sortOrder: options.sortOrder || ""
+      },
+      (response) => {
+        if (!response?.ok) {
+          reject(new Error(response?.error || "Unable to load recent jobs."));
+          return;
+        }
+        resolve(response.result?.items || []);
+      }
+    );
+  });
+}
+
+async function createJob(payload) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage({ type: "CREATE_JOB", payload }, (response) => {
       if (!response?.ok) {
-        reject(new Error(response?.error || "Unable to load recent jobs."));
+        reject(new Error(response?.error || "Unable to create job."));
         return;
       }
-      resolve(response.result?.items || []);
+      resolve(response.result);
     });
   });
+}
+
+async function updateJob(jobId, payload) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage({ type: "UPDATE_JOB", jobId, payload }, (response) => {
+      if (!response?.ok) {
+        reject(new Error(response?.error || "Unable to update job."));
+        return;
+      }
+      resolve(response.result);
+    });
+  });
+}
+
+async function deleteJob(jobId) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage({ type: "DELETE_JOB", jobId }, (response) => {
+      if (!response?.ok) {
+        reject(new Error(response?.error || "Unable to delete job."));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+let activeJobEditId = "";
+let currentJobItems = [];
+let currentJobPage = 1;
+const JOBS_PAGE_SIZE = 8;
+
+function renderJobsPager(totalItems) {
+  const totalPages = Math.max(1, Math.ceil((totalItems || 0) / JOBS_PAGE_SIZE));
+  if (jobsPageInfoEl) {
+    jobsPageInfoEl.textContent = `Page ${currentJobPage} / ${totalPages}`;
+  }
+  if (jobsPrevPageBtnEl) {
+    jobsPrevPageBtnEl.disabled = currentJobPage <= 1;
+  }
+  if (jobsNextPageBtnEl) {
+    jobsNextPageBtnEl.disabled = currentJobPage >= totalPages;
+  }
 }
 
 function renderRecentJobs(items) {
-  if (!items.length) {
-    recentJobsListEl.classList.add("muted");
-    recentJobsListEl.textContent = "No recent jobs yet.";
+  if (!jobsTableBodyEl) {
     return;
   }
-
-  recentJobsListEl.classList.remove("muted");
-  recentJobsListEl.innerHTML = "";
-  items.forEach((item) => {
-    const jobBtn = document.createElement("button");
-    jobBtn.className = "btn recent-job-item";
-    jobBtn.type = "button";
-    jobBtn.innerHTML = `
-      <span class="recent-job-title">${item.page_title || "Untitled job"}</span>
-      <span class="recent-job-meta">${item.source_site || "unknown site"}</span>
-    `;
-    jobBtn.addEventListener("click", () => {
-      const sourceUrl = item.source_url || "";
-      if (sourceUrl) {
-        chrome.tabs.create({ url: sourceUrl });
-      }
-    });
-    recentJobsListEl.appendChild(jobBtn);
+  currentJobItems = Array.isArray(items) ? items : [];
+  const totalPages = Math.max(1, Math.ceil(currentJobItems.length / JOBS_PAGE_SIZE));
+  if (currentJobPage > totalPages) {
+    currentJobPage = totalPages;
+  }
+  if (currentJobPage < 1) {
+    currentJobPage = 1;
+  }
+  if (!currentJobItems.length) {
+    jobsTableBodyEl.innerHTML = '<tr><td colspan="5" style="color:#6b7280;">No jobs found.</td></tr>';
+    renderJobsPager(0);
+    return;
+  }
+  const start = (currentJobPage - 1) * JOBS_PAGE_SIZE;
+  const pageItems = currentJobItems.slice(start, start + JOBS_PAGE_SIZE);
+  jobsTableBodyEl.innerHTML = "";
+  pageItems.forEach((item) => {
+    const isEditing = activeJobEditId === item.job_id;
+    const row = document.createElement("tr");
+    if (isEditing) {
+      row.innerHTML = `
+        <td><input class="job-inline-input" data-field="title" value="${escapeHtml(item.title || item.page_title || "")}" /></td>
+        <td><input class="job-inline-input" data-field="company" value="${escapeHtml(item.company || item.source_site || "")}" /></td>
+        <td><input class="job-inline-input" data-field="location" value="${escapeHtml(item.location || "")}" /></td>
+        <td><input class="job-inline-input" data-field="salary" value="${escapeHtml(item.salary || "")}" /></td>
+        <td>
+          <button class="tiny-btn" data-action="save">Save</button>
+          <button class="tiny-btn" data-action="cancel">Cancel</button>
+        </td>
+      `;
+    } else {
+      row.innerHTML = `
+        <td>${escapeHtml(item.title || item.page_title || "")}</td>
+        <td>${escapeHtml(item.company || item.source_site || "")}</td>
+        <td>${escapeHtml(item.location || "")}</td>
+        <td>${escapeHtml(item.salary || "")}</td>
+        <td>
+          <button class="tiny-btn" data-action="edit">Edit</button>
+          <button class="tiny-btn" data-action="delete">Delete</button>
+        </td>
+      `;
+    }
+    const deleteBtn = row.querySelector('[data-action="delete"]');
+    const editBtn = row.querySelector('[data-action="edit"]');
+    const saveBtn = row.querySelector('[data-action="save"]');
+    const cancelBtn = row.querySelector('[data-action="cancel"]');
+    if (editBtn) {
+      editBtn.addEventListener("click", () => {
+        activeJobEditId = item.job_id;
+        renderRecentJobs(currentJobItems);
+      });
+    }
+    if (saveBtn) {
+      saveBtn.addEventListener("click", async () => {
+        try {
+          const nextTitle = normalizeText(row.querySelector('[data-field="title"]')?.value || "");
+          const nextCompany = normalizeText(row.querySelector('[data-field="company"]')?.value || "");
+          const nextLocation = normalizeText(row.querySelector('[data-field="location"]')?.value || "");
+          const nextSalary = normalizeText(row.querySelector('[data-field="salary"]')?.value || "");
+          if (!nextTitle || !nextCompany) {
+            throw new Error("Title and company are required.");
+          }
+          await updateJob(item.job_id, {
+            title: nextTitle,
+            company: nextCompany,
+            location: nextLocation,
+            salary: nextSalary
+          });
+          activeJobEditId = "";
+          await loadRecentJobs();
+          setStatus("Job updated.", "success");
+        } catch (error) {
+          setStatus(error.message, "error");
+        }
+      });
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", () => {
+        activeJobEditId = "";
+        renderRecentJobs(currentJobItems);
+      });
+    }
+    if (deleteBtn) {
+      deleteBtn.addEventListener("click", async () => {
+        if (!confirm("Delete this job?")) {
+          return;
+        }
+        try {
+          await deleteJob(item.job_id);
+          await loadRecentJobs();
+          setStatus("Job deleted.", "success");
+        } catch (error) {
+          setStatus(error.message, "error");
+        }
+      });
+    }
+    jobsTableBodyEl.appendChild(row);
   });
+  renderJobsPager(currentJobItems.length);
 }
 
-async function loadRecentJobs() {
-  const items = await fetchRecentJobs(5);
+async function loadRecentJobs(options = {}) {
+  if (!jobsTableBodyEl) {
+    return;
+  }
+  const items = await fetchRecentJobs(100, {
+    search: jobsSearchInputEl?.value || "",
+    company: jobsCompanyFilterInputEl?.value || "",
+    sortBy: jobsSortByEl?.value || "created_at",
+    sortOrder: jobsSortOrderEl?.value || "desc"
+  });
+  if (!options.preservePage) {
+    currentJobPage = 1;
+  }
   renderRecentJobs(items);
 }
 
-extractBtn.addEventListener("click", async () => {
-  try {
-    setStatus("Extracting job description...", "info");
-    await extractDescription();
-  } catch (error) {
-    setStatus(error.message, "error");
-  }
-});
-
-extractFactsBtn.addEventListener("click", async () => {
-  console.log("Button clicked");
-  try {
-    setStatus("Running ChatGPT extraction...", "info");
-    const facts = await extractFactsWithChatGpt();
-    lastExtractedFacts = facts;
-    renderFacts(facts);
-    setStatus("ChatGPT extraction complete.", "success");
-  } catch (error) {
-    setStatus(error.message, "error");
-  }
-});
-
-sendBtn.addEventListener("click", async () => {
-  try {
-    setStatus("Sending job payload to server...", "info");
-    const result = await submitDescription();
-    setStatus(`Job payload submitted.\nJob ID: ${result.job_id}\nPipeline: ${result.pipeline_status.state}`, "success");
-  } catch (error) {
-    setStatus(error.message, "error");
-  }
-});
-
-saveApiBtn.addEventListener("click", async () => {
-  try {
-    await saveApiBase();
-    setStatus("API URL saved.", "success");
-    await loadRecentJobs();
-  } catch (error) {
-    setStatus(error.message, "error");
-  }
-});
-
-refreshRecentBtn.addEventListener("click", async () => {
-  try {
-    await loadRecentJobs();
-    setStatus("Recent jobs refreshed.", "success");
-  } catch (error) {
-    setStatus(error.message, "error");
-  }
-});
-
-tailorExportBtn.addEventListener("click", async () => {
-  try {
-    exportPreviewBtn.disabled = true;
-    await runResumeTailorFlow();
-  } catch (error) {
-    setStatus(error.message, "error");
-  }
-});
-
-exportPreviewBtn.addEventListener("click", () => {
-  try {
-    if (!lastPreviewHtml && lastTailorResult) {
-      lastPreviewHtml = buildResumeHtml(lastTailorResult?.best_resume, lastTailorTemplate || {});
+if (extractBtn) {
+  extractBtn.addEventListener("click", async () => {
+    try {
+      setStatus("Extracting job description...", "info");
+      await extractDescription();
+    } catch (error) {
+      setStatus(error.message, "error");
     }
-    exportTailoredResumeToPdf(lastPreviewHtml);
-    setStatus("Export started. HTML downloaded and print dialog opened.", "success");
-  } catch (error) {
-    setStatus(error.message, "error");
-  }
-});
+  });
+}
 
-themeToggleEl.addEventListener("click", () => {
-  toggleTheme();
-});
+if (extractFactsBtn) {
+  extractFactsBtn.addEventListener("click", async () => {
+    try {
+      setStatus("Running ChatGPT extraction...", "info");
+      const facts = await extractFactsWithChatGpt();
+      lastExtractedFacts = facts;
+      renderFacts(facts);
+      setStatus("ChatGPT extraction complete.", "success");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+}
 
-descriptionEl.addEventListener("input", () => {
-  updateCharCount();
-});
+if (sendBtn) {
+  sendBtn.addEventListener("click", async () => {
+    try {
+      setStatus("Sending job payload to server...", "info");
+      const result = await submitDescription();
+      const resultLabel = result.was_created ? "Job payload submitted." : "Company already exists. Reused existing job.";
+      setStatus(`${resultLabel}\nJob ID: ${result.job_id}\nPipeline: ${result.pipeline_status.state}`, "success");
+      await loadRecentJobs();
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+}
 
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-  if ((localStorage.getItem(THEME_KEY) || "auto") === "auto") {
-    applyTheme("auto");
-  }
-});
+if (jobsFilterBtnEl) {
+  jobsFilterBtnEl.addEventListener("click", async () => {
+    try {
+      await loadRecentJobs({ preservePage: false });
+      setStatus("Filters applied.", "success");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+}
 
-loadThemePreference();
+if (jobsResetBtnEl) {
+  jobsResetBtnEl.addEventListener("click", async () => {
+    if (jobsSearchInputEl) {
+      jobsSearchInputEl.value = "";
+    }
+    if (jobsCompanyFilterInputEl) {
+      jobsCompanyFilterInputEl.value = "";
+    }
+    if (jobsSortByEl) {
+      jobsSortByEl.value = "created_at";
+    }
+    if (jobsSortOrderEl) {
+      jobsSortOrderEl.value = "desc";
+    }
+    try {
+      await loadRecentJobs();
+      setStatus("Filters reset.", "success");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+}
+
+if (jobsAddBtnEl) {
+  jobsAddBtnEl.addEventListener("click", async () => {
+    try {
+      const title = normalizeText(jobTitleInputEl?.value || "");
+      const company = normalizeText(jobCompanyInputEl?.value || "");
+      const location = normalizeText(jobLocationInputEl?.value || "");
+      const salary = normalizeText(jobSalaryInputEl?.value || "");
+      if (!title || !company) {
+        throw new Error("Title and company are required.");
+      }
+      await createJob({
+        title,
+        company,
+        location,
+        salary,
+        page_title: title,
+        source_site: "manual",
+        source_url: "https://unknown.local/job",
+        job_description: `${title} role at ${company}.`
+      });
+      if (jobTitleInputEl) jobTitleInputEl.value = "";
+      if (jobCompanyInputEl) jobCompanyInputEl.value = "";
+      if (jobLocationInputEl) jobLocationInputEl.value = "";
+      if (jobSalaryInputEl) jobSalaryInputEl.value = "";
+      await loadRecentJobs({ preservePage: false });
+      setStatus("Job added.", "success");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+}
+
+if (saveApiBtn) {
+  saveApiBtn.addEventListener("click", async () => {
+    try {
+      await saveApiBase();
+      setStatus("API URL saved.", "success");
+      await loadRecentJobs();
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+}
+
+if (refreshRecentBtn) {
+  refreshRecentBtn.addEventListener("click", async () => {
+    try {
+      await loadRecentJobs();
+      setStatus("Recent jobs refreshed.", "success");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+}
+
+if (tailorExportBtn) {
+  tailorExportBtn.addEventListener("click", async () => {
+    try {
+      if (exportPreviewBtn) {
+        exportPreviewBtn.disabled = true;
+      }
+      await runResumeTailorFlow();
+      if (!lastPreviewHtml && lastTailorResult) {
+        lastPreviewHtml = buildResumeHtml(lastTailorResult?.best_resume, lastTailorTemplate || {}, lastTemplateHtml);
+      }
+      exportTailoredResumeToPdf(lastPreviewHtml);
+      setStatus("Tailoring complete. Export started and print dialog opened.", "success");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+}
+
+if (exportPreviewBtn) {
+  exportPreviewBtn.addEventListener("click", () => {
+    try {
+      if (!lastPreviewHtml && lastTailorResult) {
+        lastPreviewHtml = buildResumeHtml(lastTailorResult?.best_resume, lastTailorTemplate || {}, lastTemplateHtml);
+      }
+      exportTailoredResumeToPdf(lastPreviewHtml);
+      setStatus("Export started. HTML downloaded and print dialog opened.", "success");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+}
+
+if (themeToggleEl) {
+  themeToggleEl.addEventListener("click", () => {
+    toggleTheme();
+  });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if ((localStorage.getItem(THEME_KEY) || "auto") === "auto") {
+      applyTheme("auto");
+    }
+  });
+  loadThemePreference();
+}
+
+if (descriptionEl) {
+  descriptionEl.addEventListener("input", () => {
+    updateCharCount();
+  });
+}
+
 updateCharCount();
 renderFacts(lastExtractedFacts);
 renderTailorResult(lastTailorResult);
 
-loadApiBase()
-  .then((value) => {
-    apiBaseEl.value = value;
-  })
-  .catch((error) => setStatus(error.message, "error"));
+if (apiBaseEl) {
+  loadApiBase()
+    .then((value) => {
+      apiBaseEl.value = value;
+    })
+    .catch((error) => setStatus(error.message, "error"));
+}
 
-loadCachedExtraction()
-  .then((payload) => {
-    if (!payload?.job_description) {
+if (descriptionEl) {
+  loadCachedExtraction()
+    .then((payload) => {
+      if (!payload?.job_description) {
+        return;
+      }
+      lastPayload = payload;
+      descriptionEl.value = payload.job_description;
+      lastExtractedFacts = normalizeFacts(payload.extracted_facts || {});
+      updateCharCount();
+      renderFacts(lastExtractedFacts);
+      setStatus("Auto-detected job post and prefilled description.", "success");
+    })
+    .catch((error) => setStatus(error.message, "error"));
+}
+
+if (jobsTableBodyEl) {
+  loadRecentJobs().catch((error) => setStatus(error.message, "error"));
+}
+
+if (jobsPrevPageBtnEl) {
+  jobsPrevPageBtnEl.addEventListener("click", () => {
+    if (currentJobPage <= 1) {
       return;
     }
-    lastPayload = payload;
-    descriptionEl.value = payload.job_description;
-    lastExtractedFacts = normalizeFacts(payload.extracted_facts || {});
-    updateCharCount();
-    renderFacts(lastExtractedFacts);
-    setStatus("Auto-detected job post and prefilled description.", "success");
-  })
-  .catch((error) => setStatus(error.message, "error"));
+    currentJobPage -= 1;
+    renderRecentJobs(currentJobItems);
+  });
+}
 
-loadRecentJobs().catch((error) => setStatus(error.message, "error"));
+if (jobsNextPageBtnEl) {
+  jobsNextPageBtnEl.addEventListener("click", () => {
+    const totalPages = Math.max(1, Math.ceil(currentJobItems.length / JOBS_PAGE_SIZE));
+    if (currentJobPage >= totalPages) {
+      return;
+    }
+    currentJobPage += 1;
+    renderRecentJobs(currentJobItems);
+  });
+}
+
+if (jobsSearchInputEl) {
+  jobsSearchInputEl.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    try {
+      await loadRecentJobs({ preservePage: false });
+      setStatus("Filters applied.", "success");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+}
+
+if (jobsCompanyFilterInputEl) {
+  jobsCompanyFilterInputEl.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    try {
+      await loadRecentJobs({ preservePage: false });
+      setStatus("Filters applied.", "success");
+    } catch (error) {
+      setStatus(error.message, "error");
+    }
+  });
+}

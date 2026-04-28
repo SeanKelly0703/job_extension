@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Jobs Manager</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        background: #f6f8fc;
+        color: #111827;
+        font-family: "Segoe UI", Arial, sans-serif;
+      }
+      .container {
+        max-width: 1100px;
+        margin: 20px auto;
+        padding: 0 14px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #d8dce6;
+        border-radius: 12px;
+        padding: 14px;
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 20px;
+      }
+      .sub {
+        color: #6b7280;
+        font-size: 12px;
+        margin-bottom: 12px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      input, select, button {
+        border: 1px solid #d8dce6;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 13px;
+      }
+      input, select {
+        background: #fff;
+      }
+      button {
+        cursor: pointer;
+        background: #fff;
+      }
+      .primary {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #fff;
+      }
+      .danger {
+        border-color: #fecaca;
+        color: #b91c1c;
+      }
+      .section {
+        margin-top: 12px;
+      }
+      .table-wrap {
+        margin-top: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        overflow: auto;
+        max-height: 560px;
+        background: #fff;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 900px;
+      }
+      th, td {
+        text-align: left;
+        padding: 8px;
+        border-bottom: 1px solid #f0f0f0;
+        vertical-align: top;
+        font-size: 13px;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: #fff;
+      }
+      .tiny {
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      .status {
+        margin-top: 10px;
+        border: 1px solid #d8dce6;
+        border-radius: 8px;
+        padding: 8px 10px;
+        color: #4b5563;
+        font-size: 12px;
+        white-space: pre-wrap;
+      }
+      .pager {
+        margin-top: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .muted {
+        color: #6b7280;
+        font-size: 12px;
+      }
+      .inline-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 5px 6px;
+        border: 1px solid #d8dce6;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h2>Jobs Manager</h2>
+        <div class="sub">Manage saved jobs with add, edit, delete, filter, and sort.</div>
+
+        <div class="section row">
+          <input id="searchInput" type="text" placeholder="Search title/company/description..." style="min-width:260px;" />
+          <input id="companyFilterInput" type="text" placeholder="Filter exact company..." style="min-width:220px;" />
+          <select id="sortBySelect">
+            <option value="created_at">Sort: Created</option>
+            <option value="company">Sort: Company</option>
+            <option value="title">Sort: Title</option>
+          </select>
+          <select id="sortOrderSelect">
+            <option value="desc">Desc</option>
+            <option value="asc">Asc</option>
+          </select>
+          <button id="applyBtn" class="primary">Apply</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+
+        <div class="section row">
+          <input id="titleInput" type="text" placeholder="Title" style="min-width:220px;" />
+          <input id="companyInput" type="text" placeholder="Company" style="min-width:180px;" />
+          <input id="locationInput" type="text" placeholder="Location" style="min-width:160px;" />
+          <input id="salaryInput" type="text" placeholder="Salary" style="min-width:130px;" />
+          <button id="addBtn" class="primary">Add Job</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Company</th>
+                <th>Location</th>
+                <th>Salary</th>
+                <th>Source</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="jobsTableBody">
+              <tr><td colspan="7" class="muted">No jobs loaded.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pager">
+          <button id="prevBtn">Prev</button>
+          <span id="pageInfo" class="muted">Page 1 / 1</span>
+          <button id="nextBtn">Next</button>
+        </div>
+
+        <div id="status" class="status">Ready.</div>
+      </div>
+    </div>
+
+    <script>
+      const API_BASE = "";
+      const PAGE_SIZE = 12;
+      let allItems = [];
+      let activeEditId = "";
+      let currentPage = 1;
+
+      const el = {
+        searchInput: document.getElementById("searchInput"),
+        companyFilterInput: document.getElementById("companyFilterInput"),
+        sortBySelect: document.getElementById("sortBySelect"),
+        sortOrderSelect: document.getElementById("sortOrderSelect"),
+        applyBtn: document.getElementById("applyBtn"),
+        resetBtn: document.getElementById("resetBtn"),
+        titleInput: document.getElementById("titleInput"),
+        companyInput: document.getElementById("companyInput"),
+        locationInput: document.getElementById("locationInput"),
+        salaryInput: document.getElementById("salaryInput"),
+        addBtn: document.getElementById("addBtn"),
+        jobsTableBody: document.getElementById("jobsTableBody"),
+        prevBtn: document.getElementById("prevBtn"),
+        nextBtn: document.getElementById("nextBtn"),
+        pageInfo: document.getElementById("pageInfo"),
+        status: document.getElementById("status")
+      };
+
+      function norm(value) {
+        return String(value || "").replace(/\s+/g, " ").trim();
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function setStatus(message, type) {
+        el.status.textContent = message;
+        el.status.style.color = type === "error" ? "#b91c1c" : "#4b5563";
+      }
+
+      async function request(path, options = {}) {
+        const response = await fetch(`${API_BASE}${path}`, options);
+        if (!response.ok) {
+          let detail = "Request failed.";
+          try {
+            const body = await response.json();
+            detail = body.detail || detail;
+          } catch (_error) {
+            // ignore parsing failures
+          }
+          throw new Error(detail);
+        }
+        if (response.status === 204) {
+          return null;
+        }
+        return response.json();
+      }
+
+      async function loadJobs() {
+        const params = new URLSearchParams();
+        params.set("limit", "200");
+        const search = norm(el.searchInput.value);
+        const company = norm(el.companyFilterInput.value);
+        const sortBy = el.sortBySelect.value || "created_at";
+        const sortOrder = el.sortOrderSelect.value || "desc";
+        if (search) params.set("search", search);
+        if (company) params.set("company", company);
+        params.set("sort_by", sortBy);
+        params.set("sort_order", sortOrder);
+        const data = await request(`/api/v1/jobs?${params.toString()}`);
+        allItems = Array.isArray(data.items) ? data.items : [];
+        const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        renderRows();
+      }
+
+      function renderPager() {
+        const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+        el.pageInfo.textContent = `Page ${currentPage} / ${totalPages} (${allItems.length} results)`;
+        el.prevBtn.disabled = currentPage <= 1;
+        el.nextBtn.disabled = currentPage >= totalPages;
+      }
+
+      function renderRows() {
+        if (!allItems.length) {
+          el.jobsTableBody.innerHTML = '<tr><td colspan="7" class="muted">No jobs found.</td></tr>';
+          renderPager();
+          return;
+        }
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const pageItems = allItems.slice(start, start + PAGE_SIZE);
+        el.jobsTableBody.innerHTML = "";
+        pageItems.forEach((item) => {
+          const isEditing = activeEditId === item.job_id;
+          const row = document.createElement("tr");
+          if (isEditing) {
+            row.innerHTML = `
+              <td><input data-field="title" class="inline-input" value="${escapeHtml(item.title || "")}" /></td>
+              <td><input data-field="company" class="inline-input" value="${escapeHtml(item.company || "")}" /></td>
+              <td><input data-field="location" class="inline-input" value="${escapeHtml(item.location || "")}" /></td>
+              <td><input data-field="salary" class="inline-input" value="${escapeHtml(item.salary || "")}" /></td>
+              <td>${escapeHtml(item.source_site || "")}</td>
+              <td>${escapeHtml(new Date(item.created_at).toLocaleString())}</td>
+              <td>
+                <button class="tiny" data-action="save">Save</button>
+                <button class="tiny" data-action="cancel">Cancel</button>
+              </td>
+            `;
+          } else {
+            row.innerHTML = `
+              <td>${escapeHtml(item.title || "")}</td>
+              <td>${escapeHtml(item.company || "")}</td>
+              <td>${escapeHtml(item.location || "")}</td>
+              <td>${escapeHtml(item.salary || "")}</td>
+              <td>${escapeHtml(item.source_site || "")}</td>
+              <td>${escapeHtml(new Date(item.created_at).toLocaleString())}</td>
+              <td>
+                <button class="tiny" data-action="edit">Edit</button>
+                <button class="tiny danger" data-action="delete">Delete</button>
+              </td>
+            `;
+          }
+
+          const editBtn = row.querySelector('[data-action="edit"]');
+          const deleteBtn = row.querySelector('[data-action="delete"]');
+          const saveBtn = row.querySelector('[data-action="save"]');
+          const cancelBtn = row.querySelector('[data-action="cancel"]');
+
+          if (editBtn) {
+            editBtn.addEventListener("click", () => {
+              activeEditId = item.job_id;
+              renderRows();
+            });
+          }
+          if (cancelBtn) {
+            cancelBtn.addEventListener("click", () => {
+              activeEditId = "";
+              renderRows();
+            });
+          }
+          if (saveBtn) {
+            saveBtn.addEventListener("click", async () => {
+              try {
+                const title = norm(row.querySelector('[data-field="title"]')?.value);
+                const company = norm(row.querySelector('[data-field="company"]')?.value);
+                const location = norm(row.querySelector('[data-field="location"]')?.value);
+                const salary = norm(row.querySelector('[data-field="salary"]')?.value);
+                if (!title || !company) {
+                  throw new Error("Title and company are required.");
+                }
+                await request(`/api/v1/jobs/${item.job_id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    title,
+                    company,
+                    location,
+                    salary,
+                    source_site: item.source_site || "manual",
+                    source_url: item.source_url || "https://unknown.local/job",
+                    page_title: title,
+                    job_description: item.job_description || `${title} role at ${company}.`
+                  })
+                });
+                activeEditId = "";
+                await loadJobs();
+                setStatus("Job updated.");
+              } catch (error) {
+                setStatus(error.message, "error");
+              }
+            });
+          }
+          if (deleteBtn) {
+            deleteBtn.addEventListener("click", async () => {
+              if (!confirm("Delete this job?")) return;
+              try {
+                await request(`/api/v1/jobs/${item.job_id}`, { method: "DELETE" });
+                activeEditId = "";
+                await loadJobs();
+                setStatus("Job deleted.");
+              } catch (error) {
+                setStatus(error.message, "error");
+              }
+            });
+          }
+
+          el.jobsTableBody.appendChild(row);
+        });
+        renderPager();
+      }
+
+      async function addJob() {
+        const title = norm(el.titleInput.value);
+        const company = norm(el.companyInput.value);
+        const location = norm(el.locationInput.value);
+        const salary = norm(el.salaryInput.value);
+        if (!title || !company) {
+          throw new Error("Title and company are required.");
+        }
+        await request("/api/v1/jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            company,
+            location,
+            salary,
+            source_site: "manual",
+            source_url: "https://unknown.local/job",
+            page_title: title,
+            job_description: `${title} role at ${company}.`
+          })
+        });
+        el.titleInput.value = "";
+        el.companyInput.value = "";
+        el.locationInput.value = "";
+        el.salaryInput.value = "";
+      }
+
+      el.applyBtn.addEventListener("click", async () => {
+        try {
+          currentPage = 1;
+          await loadJobs();
+          setStatus("Filters applied.");
+        } catch (error) {
+          setStatus(error.message, "error");
+        }
+      });
+
+      el.resetBtn.addEventListener("click", async () => {
+        try {
+          el.searchInput.value = "";
+          el.companyFilterInput.value = "";
+          el.sortBySelect.value = "created_at";
+          el.sortOrderSelect.value = "desc";
+          currentPage = 1;
+          await loadJobs();
+          setStatus("Filters reset.");
+        } catch (error) {
+          setStatus(error.message, "error");
+        }
+      });
+
+      el.addBtn.addEventListener("click", async () => {
+        try {
+          await addJob();
+          currentPage = 1;
+          await loadJobs();
+          setStatus("Job added.");
+        } catch (error) {
+          setStatus(error.message, "error");
+        }
+      });
+
+      el.prevBtn.addEventListener("click", () => {
+        if (currentPage <= 1) return;
+        currentPage -= 1;
+        renderRows();
+      });
+
+      el.nextBtn.addEventListener("click", () => {
+        const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+        if (currentPage >= totalPages) return;
+        currentPage += 1;
+        renderRows();
+      });
+
+      [el.searchInput, el.companyFilterInput].forEach((input) => {
+        input.addEventListener("keydown", async (event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          try {
+            currentPage = 1;
+            await loadJobs();
+            setStatus("Filters applied.");
+          } catch (error) {
+            setStatus(error.message, "error");
+          }
+        });
+      });
+
+      loadJobs().catch((error) => setStatus(error.message, "error"));
+    </script>
+  </body>
+</html>

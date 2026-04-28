@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.jobs import router as jobs_router
 
@@ -18,6 +20,13 @@ app.add_middleware(
 )
 
 app.include_router(jobs_router)
+
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+@app.get("/")
+def jobs_frontend() -> FileResponse:
+    return FileResponse("app/static/jobs.html")
 
 
 @app.get("/health")

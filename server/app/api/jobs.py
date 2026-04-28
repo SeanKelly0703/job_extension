@@ -5,6 +5,7 @@ from app.schemas.job import (
     JobIngestResponse,
     JobListResponse,
     JobSummary,
+    JobUpsertRequest,
     PipelineStatusSnapshot,
 )
 from app.schemas.pipeline import (
@@ -18,11 +19,27 @@ router = APIRouter(prefix="/api/v1", tags=["jobs"])
 
 
 @router.get("/jobs", response_model=JobListResponse)
-def list_jobs(limit: int = Query(default=20, ge=1, le=100)) -> JobListResponse:
-    records = pipeline_service.list_jobs(limit=limit)
+def list_jobs(
+    limit: int = Query(default=20, ge=1, le=200),
+    search: str = Query(default=""),
+    company: str = Query(default=""),
+    sort_by: str = Query(default="created_at"),
+    sort_order: str = Query(default="desc"),
+) -> JobListResponse:
+    records = pipeline_service.list_jobs(
+        limit=limit,
+        search=search,
+        company=company,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
     items = [
         JobSummary(
             job_id=record.id,
+            title=record.title,
+            company=record.company,
+            salary=record.salary,
+            location=record.location,
             source_url=record.source_url,
             page_title=record.page_title,
             source_site=record.source_site,
@@ -35,10 +52,18 @@ def list_jobs(limit: int = Query(default=20, ge=1, le=100)) -> JobListResponse:
 
 @router.post("/jobs/ingest", response_model=JobIngestResponse, status_code=status.HTTP_201_CREATED)
 def ingest_job(request: JobIngestRequest) -> JobIngestResponse:
-    job = pipeline_service.ingest_job(request.model_dump(mode="json"))
+    payload = request.model_dump(mode="json")
+    if not payload.get("source_url"):
+        payload["source_url"] = "https://unknown.local/job"
+    if not payload.get("page_title"):
+        payload["page_title"] = payload.get("title", "")
+    if not payload.get("source_site"):
+        payload["source_site"] = "manual"
+    job, was_created = pipeline_service.ingest_job(payload, dedupe_by_company=True)
     return JobIngestResponse(
         job_id=job.id,
-        status="accepted",
+        status="accepted" if was_created else "already_exists",
+        was_created=was_created,
         pipeline_status=PipelineStatusSnapshot(
             state="not_started",
             ats_score=0,
@@ -47,6 +72,57 @@ def ingest_job(request: JobIngestRequest) -> JobIngestResponse:
         ),
         created_at=job.created_at,
     )
+
+
+@router.post("/jobs", response_model=JobSummary, status_code=status.HTTP_201_CREATED)
+def add_job(request: JobUpsertRequest) -> JobSummary:
+    payload = request.model_dump(mode="json")
+    if not payload.get("source_url"):
+        payload["source_url"] = "https://unknown.local/job"
+    if not payload.get("page_title"):
+        payload["page_title"] = payload.get("title", "")
+    if not payload.get("source_site"):
+        payload["source_site"] = "manual"
+    if not payload.get("job_description"):
+        payload["job_description"] = f"{payload.get('title', '')} {payload.get('company', '')}".strip() or "Manual job entry"
+    job, _ = pipeline_service.ingest_job(payload, dedupe_by_company=False)
+    return JobSummary(
+        job_id=job.id,
+        title=job.title,
+        company=job.company,
+        salary=job.salary,
+        location=job.location,
+        source_url=job.source_url,
+        page_title=job.page_title,
+        source_site=job.source_site,
+        created_at=job.created_at,
+    )
+
+
+@router.put("/jobs/{job_id}", response_model=JobSummary)
+def update_job(job_id: str, request: JobUpsertRequest) -> JobSummary:
+    try:
+        job = pipeline_service.update_job(job_id, request.model_dump(mode="json"))
+    except KeyError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.") from error
+    return JobSummary(
+        job_id=job.id,
+        title=job.title,
+        company=job.company,
+        salary=job.salary,
+        location=job.location,
+        source_url=job.source_url,
+        page_title=job.page_title,
+        source_site=job.source_site,
+        created_at=job.created_at,
+    )
+
+
+@router.delete("/jobs/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_job(job_id: str) -> None:
+    deleted = pipeline_service.delete_job(job_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
 
 
 @router.post("/pipeline/{job_id}/start", response_model=PipelineStartResponse)

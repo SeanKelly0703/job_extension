@@ -36,10 +36,18 @@ const ATS_TERM_VARIANTS = {
 
 function normalizePayload(payload) {
   const description = (payload?.job_description || "").replace(/\s+/g, " ").trim();
+  const title = (payload?.title || payload?.job_title || "").trim();
+  const company = (payload?.company || "").trim();
+  const salary = (payload?.salary || "").trim();
+  const location = (payload?.location || "").trim();
   const normalized = {
-    source_url: payload?.source_url || "",
-    page_title: payload?.page_title || "",
-    source_site: payload?.source_site || "",
+    source_url: payload?.source_url || "https://unknown.local/job",
+    page_title: payload?.page_title || title || "",
+    source_site: payload?.source_site || "manual",
+    title,
+    company,
+    salary,
+    location,
     job_description: description.slice(0, MAX_DESCRIPTION_LEN),
     metadata: {
       truncated: description.length > MAX_DESCRIPTION_LEN,
@@ -63,9 +71,66 @@ async function sendToBackend(payload) {
   return data;
 }
 
-async function fetchRecentJobs(limit = 5) {
+async function createJob(payload) {
   const { apiBase } = await chrome.storage.sync.get({ apiBase: DEFAULT_API_BASE });
-  const response = await fetch(`${apiBase}/api/v1/jobs?limit=${limit}`);
+  const response = await fetch(`${apiBase}/api/v1/jobs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.detail || "Failed to create job.");
+  }
+  return data;
+}
+
+async function updateJob(jobId, payload) {
+  const { apiBase } = await chrome.storage.sync.get({ apiBase: DEFAULT_API_BASE });
+  const response = await fetch(`${apiBase}/api/v1/jobs/${jobId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.detail || "Failed to update job.");
+  }
+  return data;
+}
+
+async function deleteJob(jobId) {
+  const { apiBase } = await chrome.storage.sync.get({ apiBase: DEFAULT_API_BASE });
+  const response = await fetch(`${apiBase}/api/v1/jobs/${jobId}`, { method: "DELETE" });
+  if (!response.ok) {
+    let detail = "Failed to delete job.";
+    try {
+      const data = await response.json();
+      detail = data?.detail || detail;
+    } catch (_error) {
+      // ignore parse failures
+    }
+    throw new Error(detail);
+  }
+}
+
+async function fetchRecentJobs(limit = 5, options = {}) {
+  const { apiBase } = await chrome.storage.sync.get({ apiBase: DEFAULT_API_BASE });
+  const params = new URLSearchParams();
+  params.set("limit", String(limit));
+  if (options.search) {
+    params.set("search", String(options.search));
+  }
+  if (options.company) {
+    params.set("company", String(options.company));
+  }
+  if (options.sort_by) {
+    params.set("sort_by", String(options.sort_by));
+  }
+  if (options.sort_order) {
+    params.set("sort_order", String(options.sort_order));
+  }
+  const response = await fetch(`${apiBase}/api/v1/jobs?${params.toString()}`);
   const data = await response.json();
   if (!response.ok) {
     throw new Error(data?.detail || "Failed to fetch recent jobs.");
@@ -1401,8 +1466,31 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message?.type === "GET_RECENT_JOBS") {
     const limit = Number(message.limit) || 5;
-    fetchRecentJobs(Math.max(1, Math.min(limit, 20)))
+    fetchRecentJobs(Math.max(1, Math.min(limit, 200)), {
+      search: message.search || "",
+      company: message.company || "",
+      sort_by: message.sortBy || "",
+      sort_order: message.sortOrder || ""
+    })
       .then((result) => sendResponse({ ok: true, result }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+  }
+
+  if (message?.type === "CREATE_JOB") {
+    createJob(message.payload || {})
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+  }
+
+  if (message?.type === "UPDATE_JOB") {
+    updateJob(String(message.jobId || ""), message.payload || {})
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+  }
+
+  if (message?.type === "DELETE_JOB") {
+    deleteJob(String(message.jobId || ""))
+      .then(() => sendResponse({ ok: true }))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
   }
 

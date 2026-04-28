@@ -5,7 +5,11 @@ from pydantic import BaseModel, Field, HttpUrl
 
 
 class JobIngestRequest(BaseModel):
-    source_url: HttpUrl
+    source_url: HttpUrl | None = None
+    title: str = Field(default="", max_length=300)
+    company: str = Field(default="", max_length=300)
+    salary: str = Field(default="", max_length=120)
+    location: str = Field(default="", max_length=300)
     page_title: str = Field(default="", max_length=500)
     source_site: str = Field(default="", max_length=200)
     job_description: str = Field(min_length=50, max_length=20000)
@@ -22,12 +26,17 @@ class PipelineStatusSnapshot(BaseModel):
 class JobIngestResponse(BaseModel):
     job_id: str
     status: str
+    was_created: bool
     pipeline_status: PipelineStatusSnapshot
     created_at: datetime
 
 
 class JobSummary(BaseModel):
     job_id: str
+    title: str
+    company: str
+    salary: str
+    location: str
     source_url: str
     page_title: str
     source_site: str
@@ -37,3 +46,15 @@ class JobSummary(BaseModel):
 class JobListResponse(BaseModel):
     items: list[JobSummary]
     count: int
+
+
+class JobUpsertRequest(BaseModel):
+    title: str = Field(default="", max_length=300)
+    company: str = Field(default="", max_length=300)
+    salary: str = Field(default="", max_length=120)
+    location: str = Field(default="", max_length=300)
+    source_url: str = Field(default="")
+    page_title: str = Field(default="", max_length=500)
+    source_site: str = Field(default="", max_length=200)
+    job_description: str = Field(default="", max_length=20000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
