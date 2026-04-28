@@ -218,6 +218,37 @@ function parseFeedbackTerms(raw) {
     .filter(Boolean);
 }
 
+function parseFeedbackTermEntries(raw) {
+  if (!raw) {
+    return [];
+  }
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => String(item || ""))
+      .map((item) => {
+        const term = cleanText(item.replace(/\(\d+\)/g, " "));
+        const countMatch = String(item).match(/\((\d+)\)/);
+        const count = countMatch ? Math.max(1, Number(countMatch[1]) || 1) : 1;
+        return { term, count };
+      })
+      .filter((item) => item.term);
+  }
+  if (typeof raw === "object") {
+    return Object.values(raw).flatMap((value) => parseFeedbackTermEntries(value));
+  }
+  const text = String(raw);
+  return text
+    .split(/[\n,;|]/g)
+    .map((item) => String(item || ""))
+    .map((item) => {
+      const term = cleanText(item.replace(/\(\d+\)/g, " "));
+      const countMatch = item.match(/\((\d+)\)/);
+      const count = countMatch ? Math.max(1, Number(countMatch[1]) || 1) : 1;
+      return { term, count };
+    })
+    .filter((item) => item.term);
+}
+
 function buildTermVariants(term) {
   const normalized = simplifyTerm(term);
   const variants = new Set([normalized, normalized.replace(/[/-]/g, " ")]);
@@ -228,20 +259,45 @@ function buildTermVariants(term) {
   return Array.from(variants).filter(Boolean);
 }
 
+function countTermMentionsInText(text, variants) {
+  const normalized = ` ${normalizeTerm(text || "").replace(/[^\w+#./\s-]/g, " ")} `;
+  let total = 0;
+  (variants || []).forEach((variant) => {
+    const v = simplifyTerm(variant);
+    if (!v) {
+      return;
+    }
+    const escaped = v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    const re = new RegExp(`(?<!\\w)${escaped}(?!\\w)`, "gi");
+    const matches = normalized.match(re);
+    total += matches ? matches.length : 0;
+  });
+  return total;
+}
+
 function derivePriorityTerms({ jobDescription, targetJobTitle, checkerFeedback }) {
-  const feedbackTerms = parseFeedbackTerms(checkerFeedback).filter(shouldKeepKeyword);
+  const feedbackEntries = parseFeedbackTermEntries(checkerFeedback).filter((item) => shouldKeepKeyword(item.term));
+  const feedbackTerms = feedbackEntries.map((item) => item.term);
   const jdKeywords = extractJobKeywords(jobDescription).filter(shouldKeepKeyword).slice(0, 40);
+  const jdText = cleanText(jobDescription);
   const ordered = [];
   function pushTerm(term, source, priority) {
     const normalized = simplifyTerm(term);
     if (!normalized || ordered.some((item) => item.term === normalized)) {
       return;
     }
+    const variants = buildTermVariants(normalized);
+    const feedbackCount = feedbackEntries
+      .filter((item) => simplifyTerm(item.term) === normalized)
+      .reduce((sum, item) => sum + (Number(item.count) || 0), 0);
+    const jdCount = countTermMentionsInText(jdText, variants);
+    const targetMentions = Math.max(1, feedbackCount || jdCount || 1);
     ordered.push({
       term: normalized,
       source,
       priority,
-      variants: buildTermVariants(normalized)
+      variants,
+      target_mentions: targetMentions
     });
   }
   if (targetJobTitle && shouldKeepKeyword(targetJobTitle)) {
@@ -345,28 +401,41 @@ function evaluateKeywordCoverage(resume, priorityTerms) {
   const sectionText = resumeToSectionText(resume);
   const sections = Object.entries(sectionText).map(([section, text]) => ({ section, text: normalizeTerm(text) }));
   const coverage = priorityTerms.map((term) => {
-    const matches = sections
-      .filter(({ text }) => term.variants.some((variant) => variant && text.includes(variant)))
-      .map(({ section }) => section);
+    const matches = [];
+    let mentionCount = 0;
+    sections.forEach(({ section, text }) => {
+      const sectionMentions = countTermMentionsInText(text, term.variants);
+      if (sectionMentions > 0) {
+        matches.push(section);
+        mentionCount += sectionMentions;
+      }
+    });
     return {
       term: term.term,
       source: term.source,
       priority: term.priority,
-      matched_sections: matches
+      matched_sections: matches,
+      target_mentions: Math.max(1, Number(term.target_mentions) || 1),
+      resume_mentions: mentionCount
     };
   });
   const present = coverage.filter((item) => item.matched_sections.length > 0);
   const missing = coverage.filter((item) => item.matched_sections.length === 0);
+  const lowFrequency = coverage.filter(
+    (item) => item.matched_sections.length > 0 && item.resume_mentions < item.target_mentions
+  );
   return {
     present,
     missing,
+    low_frequency: lowFrequency,
     coverage
   };
 }
 
 function shouldRunCoverageRefinement(report) {
   const highPriorityMissing = report.missing.filter((item) => item.priority >= 70).length;
-  return highPriorityMissing >= 2 || report.missing.length >= 6;
+  const highPriorityLowFrequency = (report.low_frequency || []).filter((item) => item.priority >= 70).length;
+  return highPriorityMissing >= 2 || report.missing.length >= 6 || highPriorityLowFrequency >= 2;
 }
 
 function normalizeDateRange(value) {
@@ -567,7 +636,8 @@ function buildTailorPrompt({
   const prioritySummary = priorityTerms.map((item) => ({
     term: item.term,
     source: item.source,
-    priority: item.priority
+    priority: item.priority,
+    target_mentions: item.target_mentions || 1
   }));
   const prompt = [
     "You are a senior ATS resume strategist and recruiter.",
@@ -602,6 +672,7 @@ function buildTailorPrompt({
     "- Keep natural lexical variety (synonyms and alternate phrasing) so text does not read templated.",
     "Coverage policy:",
     "- Ensure each priority keyword appears at least once across summary, experience, projects, or skills when truthful.",
+    "- Balance skill mention frequency: cover critical JD skills enough times to reflect role emphasis, but avoid unnatural keyword stuffing.",
     "- Put role-title alignment in headline/summary when possible.",
     "- Include an explicit Soft Skills section (`soft_skills`) derived from demonstrated behaviors in experience bullets.",
     "- Include an explicit Languages section (`languages`) for spoken and/or programming languages supported by evidence.",
@@ -658,6 +729,7 @@ function buildCoverageRefinementPrompt({
   jobDescription,
   tailoredResume,
   missingTerms,
+  lowFrequencyTerms,
   targetJobTitle,
   sectionOrder,
   targetScore
@@ -688,6 +760,7 @@ function buildCoverageRefinementPrompt({
     "- Strengthen quantified outcomes in weak bullets (convert generic claims into metric-backed impact when evidence exists).",
     "- Ensure each experience/project entry contains at least one measurable result line when evidence allows.",
     "- When hard numbers are missing, preserve truth by using explicit scope indicators rather than invented metrics.",
+    "- Increase mention count for underrepresented high-priority skills naturally across relevant sections.",
     "- Reduce repetitive wording by varying bullet starters and sentence structure.",
     "- Do not repeat the same multi-word phrase across multiple bullets unless strictly necessary.",
     "- Keep `soft_skills` and `languages` populated from evidence (do not invent unsupported fluency claims).",
@@ -705,6 +778,9 @@ function buildCoverageRefinementPrompt({
     "",
     "Missing ATS terms to cover:",
     JSON.stringify(missingTerms, null, 2),
+    "",
+    "Underrepresented ATS terms (increase mention density naturally):",
+    JSON.stringify(lowFrequencyTerms || [], null, 2),
     "",
     "Target job title:",
     cleanText(targetJobTitle || ""),
@@ -770,6 +846,7 @@ function buildIterationTailorPrompt({
     "- Increase role-relevant action verb coverage while keeping verb variety.",
     "- Replace weak, generic bullets with quantified impact statements where evidence supports it.",
     "- Increase metric density and vary action verbs to avoid repetitive phrasing.",
+    "- Raise mention frequency for critical underrepresented skills without keyword stuffing.",
     "- Remove repetitive wording patterns and diversify phrasing across bullets and summary.",
     "- Keep parser-friendly formatting and section clarity.",
     "- Preserve date consistency: `MMM YYYY - MMM YYYY` or `MMM YYYY - Present`.",
@@ -1066,6 +1143,13 @@ async function runResumeTailoring(payload) {
       jobDescription,
       tailoredResume,
       missingTerms: coverageReport.missing.slice(0, 10).map((item) => item.term),
+      lowFrequencyTerms: (coverageReport.low_frequency || [])
+        .slice(0, 10)
+        .map((item) => ({
+          term: item.term,
+          resume_mentions: item.resume_mentions,
+          target_mentions: item.target_mentions
+        })),
       targetJobTitle,
       targetScore,
       sectionOrder:
@@ -1090,7 +1174,10 @@ async function runResumeTailoring(payload) {
   }
   if (isSinglePass) {
     const keywordFocus = priorityTerms.map((item) => item.term).slice(0, 12);
-    const missingKeywords = coverageReport.missing.map((item) => item.term).slice(0, 10);
+    const missingKeywords = [
+      ...coverageReport.missing.map((item) => item.term),
+      ...(coverageReport.low_frequency || []).map((item) => `${item.term} (underrepresented)`)
+    ].slice(0, 10);
     return {
       ok: true,
       mode: "single_pass_targeted",
@@ -1101,7 +1188,8 @@ async function runResumeTailoring(payload) {
       missing_keywords: missingKeywords,
       coverage_report: {
         present: coverageReport.present.slice(0, 20),
-        missing: coverageReport.missing.slice(0, 20)
+        missing: coverageReport.missing.slice(0, 20),
+        low_frequency: (coverageReport.low_frequency || []).slice(0, 20)
       },
       refinement_applied: false,
       score_report: null,
@@ -1162,7 +1250,12 @@ async function runResumeTailoring(payload) {
       currentResume,
       scoreReport: {
         ...scoreReport,
-        coverage_missing: coverageReport.missing.map((item) => item.term).slice(0, 12)
+        coverage_missing: coverageReport.missing.map((item) => item.term).slice(0, 12),
+        coverage_low_frequency: (coverageReport.low_frequency || []).slice(0, 12).map((item) => ({
+          term: item.term,
+          resume_mentions: item.resume_mentions,
+          target_mentions: item.target_mentions
+        }))
       },
       targetJobTitle,
       priorityTerms,
@@ -1184,7 +1277,10 @@ async function runResumeTailoring(payload) {
   }
   const missingKeywords = bestScoreReport.missing_keywords?.length
     ? bestScoreReport.missing_keywords.slice(0, 10)
-    : coverageReport.missing.map((item) => item.term).slice(0, 10);
+    : [
+        ...coverageReport.missing.map((item) => item.term),
+        ...(coverageReport.low_frequency || []).map((item) => `${item.term} (underrepresented)`)
+      ].slice(0, 10);
   const keywordFocus = priorityTerms.map((item) => item.term).slice(0, 12);
   return {
     ok: true,
@@ -1198,7 +1294,8 @@ async function runResumeTailoring(payload) {
     missing_keywords: missingKeywords,
     coverage_report: {
       present: coverageReport.present.slice(0, 20),
-      missing: coverageReport.missing.slice(0, 20)
+      missing: coverageReport.missing.slice(0, 20),
+      low_frequency: (coverageReport.low_frequency || []).slice(0, 20)
     },
     refinement_applied: refinementApplied,
     score_report: bestScoreReport,

@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDF-Ready Responsive Resume Template</title>
+  <meta name="description" content="Responsive, PDF-ready resume HTML template filled with sample data." />
+  <style>
+    :root {
+      --paper-width: 210mm;
+      --paper-padding-x: 13mm;
+      --screen-width: 900px;
+      --section-rule-width: 520px;
+      --text: #111;
+      --muted: #333;
+      --line: #111;
+      --page-bg: #fff;
+      --screen-bg: #f4f4f2;
+      --accent: #0a66c2;
+      --content-font: "Times New Roman", Times, serif;
+      --ui-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      background: var(--screen-bg);
+    }
+
+    body {
+      margin: 0;
+      background: var(--screen-bg);
+      color: var(--text);
+      font-family: var(--content-font);
+      line-height: 1.18;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .toolbar {
+      width: min(100% - 32px, var(--screen-width));
+      margin: 22px auto 10px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .toolbar button {
+      appearance: none;
+      border: 1px solid #cfcfcf;
+      background: #fff;
+      border-radius: 999px;
+      padding: 9px 14px;
+      font: 600 13px/1 var(--ui-font);
+      cursor: pointer;
+      box-shadow: 0 8px 22px rgba(0,0,0,.08);
+    }
+
+    .page {
+      width: min(100% - 32px, var(--screen-width));
+      margin: 0 auto 32px;
+      background: var(--page-bg);
+      padding: 34px 46px;
+      box-shadow: 0 18px 55px rgba(0,0,0,.12);
+      border-radius: 12px;
+    }
+
+    .resume-header { text-align: center; margin-bottom: 13px; }
+
+    .name {
+      margin: 0 0 3px;
+      font-size: 34px;
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .headline {
+      margin: 0 0 8px;
+      font-size: 17px;
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    .contact-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 4px 14px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 12.4px;
+    }
+
+    .contact-list li {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .contact-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 13px;
+      height: 13px;
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 700;
+      color: var(--text);
+      flex: 0 0 auto;
+    }
+
+    .contact-icon svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      fill: currentColor;
+    }
+
+    .linkedin-icon {
+      border-radius: 2px;
+      background: var(--accent);
+      color: #fff;
+      font-family: Arial, sans-serif;
+      font-size: 8.5px;
+      width: 12px;
+      height: 12px;
+    }
+
+    .section { margin-top: 10px; }
+
+    .section-title {
+      display: block;
+      width: 100%;
+      margin: 0 0 7px;
+      padding-bottom: 6px;
+      border-bottom: 2.5px solid var(--line);
+      font-size: 17px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+      break-after: avoid;
+      page-break-after: avoid;
+    }
+
+    .profile-text {
+      margin: 0 0 5px;
+      font-size: 12.4px;
+      text-align: left;
+    }
+
+    .profile-text strong { font-weight: 800; }
+
+    .experience-list, .skills-list { display: block; }
+
+    .role {
+      margin: 0 0 8px;
+      break-inside: auto;
+      page-break-inside: auto;
+    }
+
+    .role-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: baseline;
+      margin: 0 0 1px;
+      font-size: 12.5px;
+      break-after: avoid;
+      page-break-after: avoid;
+    }
+
+    .role-title { font-weight: 800; min-width: 0; }
+    .company { font-style: italic; font-weight: 400; }
+
+    .role-meta {
+      text-align: right;
+      white-space: nowrap;
+      font-size: 11.6px;
+    }
+
+    .project-name {
+      margin: 0 0 2px;
+      font-size: 12.1px;
+      font-style: normal;
+      break-after: avoid;
+      page-break-after: avoid;
+    }
+
+    .bullet-list {
+      margin: 0;
+      padding-left: 16px;
+      font-size: 11.55px;
+    }
+
+    .bullet-list li {
+      margin: 0 0 1px;
+      padding-left: 1px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .skill-group {
+      margin: 0 0 5px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .skill-title {
+      margin: 0 0 1px;
+      font-size: 12.2px;
+      font-weight: 800;
+    }
+
+    .skill-items {
+      margin: 0;
+      font-size: 11.55px;
+    }
+
+    .education-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: baseline;
+      font-size: 12.2px;
+    }
+
+    .education-school { font-weight: 800; }
+    .education-meta { white-space: nowrap; text-align: right; font-size: 11.4px; }
+    .thesis { margin: 2px 0 0; font-size: 11.55px; }
+
+    .cert-list {
+      margin: 0;
+      padding-left: 17px;
+      font-size: 11.55px;
+    }
+
+    .cert-list li { margin: 0 0 1px; }
+
+    @media (max-width: 720px) {
+      .toolbar { margin: 0; width: 100%; padding: 12px; justify-content: center; background: #fff; }
+      .page { width: 100%; margin: 0; padding: 20px; border-radius: 0; box-shadow: none; }
+      .name { font-size: 30px; }
+      .headline { font-size: 16px; }
+      .contact-list { flex-direction: column; gap: 5px; font-size: 13px; }
+      .contact-list li { white-space: normal; text-align: center; }
+      .role-heading, .education-card { grid-template-columns: 1fr; gap: 1px; }
+      .role-meta, .education-meta { text-align: left; white-space: normal; color: var(--muted); }
+      .section-title { font-size: 16px; padding-bottom: 5px; }
+      .profile-text, .bullet-list, .skill-items, .cert-list, .thesis { font-size: 13.4px; }
+      .role-heading, .project-name, .skill-title, .education-card { font-size: 13.8px; }
+    }
+
+    @page {
+      size: A4;
+      margin: 10mm 11mm 10mm 11mm;
+    }
+
+    @media print {
+      html, body {
+        width: 100%;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .toolbar { display: none !important; }
+
+
+      .page {
+        width: auto !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+      }
+
+      .resume-header { margin-bottom: 8pt; }
+      .name { font-size: 22pt; margin-bottom: 2pt; }
+      .headline { font-size: 11.4pt; margin-bottom: 5pt; }
+      .contact-list { font-size: 8.5pt; gap: 2pt 9pt; }
+      .contact-icon { width: 9pt; height: 9pt; font-size: 7pt; }
+      .linkedin-icon { width: 9pt; height: 9pt; font-size: 6pt; }
+      .section { margin-top: 7pt; }
+      .section-title { font-size: 13pt; margin-bottom: 4pt; padding-bottom: 4pt; border-bottom-width: 1.6pt; }
+      .profile-text { font-size: 9.05pt; margin-bottom: 3pt; line-height: 1.13; }
+      .role { margin-bottom: 5pt; }
+      .role-heading { font-size: 9.15pt; gap: 8pt; line-height: 1.12; }
+      .role-meta { font-size: 8.25pt; }
+      .project-name { font-size: 8.9pt; margin-bottom: 1pt; line-height: 1.12; }
+      .bullet-list { font-size: 8.15pt; line-height: 1.115; padding-left: 13pt; }
+      .bullet-list li { margin-bottom: .5pt; }
+      .skill-group { margin-bottom: 3.5pt; }
+      .skill-title { font-size: 8.9pt; line-height: 1.08; }
+      .skill-items { font-size: 8.05pt; line-height: 1.11; }
+      .education-card { font-size: 8.9pt; }
+      .education-meta { font-size: 8.1pt; }
+      .thesis, .cert-list { font-size: 8.05pt; line-height: 1.12; }
+
+      /* Keep headings with the first content line, but allow long roles to split naturally. */
+      .section-title, .role-heading, .project-name, .skill-title, .education-card { break-after: avoid; page-break-after: avoid; }
+      .bullet-list li, .skill-group, .education-card, .cert-list li { break-inside: avoid; page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar" aria-hidden="true">
+    <button type="button" onclick="window.print()">Print / Save as PDF</button>
+  </div>
+
+  <main class="page">
+    <header class="resume-header">
+      <h1 class="name">Angelo Lacson</h1>
+      <p class="headline">Senior Backend Engineer | Node.js | Low-Latency Distributed Systems | Trading Platforms</p>
+      <ul class="contact-list" aria-label="Contact information">
+        <li><span class="contact-icon" aria-hidden="true">✉</span><a href="mailto:angelo.lacson.work0407@gmail.com">angelo.lacson.work0407@gmail.com</a></li>
+        <li><span class="contact-icon linkedin-icon" aria-hidden="true">in</span><a href="https://linkedin.com/in/angelo-lacson-81808b3b6">linkedin.com/in/angelo-lacson-81808b3b6</a></li>
+        <li><span class="contact-icon" aria-hidden="true">☎</span><a href="tel:+12092732545">+1 209 273 2545, +63 969 051 3850</a></li>
+        <li><span class="contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24" role="img" focusable="false"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/></svg></span><span>Santo Tomas, Pampanga, Philippines</span></li>
+      </ul>
+    </header>
+
+    <section class="section" aria-labelledby="profile-title">
+      <h2 class="section-title" id="profile-title">Profile</h2>
+      <p class="profile-text"><strong>Senior Backend Engineer</strong> with 7+ years of experience engineering high-throughput, low-latency distributed systems across fintech, real-time data platforms, and enterprise SaaS. Specialized in Node.js microservices, event-driven architectures, and cloud-native infrastructure, delivering backend systems that process 50M+ events/day with sub-100ms latency.</p>
+      <p class="profile-text">Proven track record of designing scalable trading-adjacent platforms, real-time data pipelines, and API ecosystems, improving system throughput by up to 3x and reducing latency by 40-60%. Strong expertise in Kafka, Redis, PostgreSQL, Kubernetes, and AWS, with deep understanding of high-availability, fault tolerance, and security-first backend design.</p>
+      <p class="profile-text">Recognized for leading backend initiatives end-to-end, mentoring engineers, and collaborating cross-functionally to deliver production-grade systems in fast-paced environments.</p>
+    </section>
+
+    <section class="section" aria-labelledby="experience-title">
+      <h2 class="section-title" id="experience-title">Professional Experience</h2>
+      <div class="experience-list">
+        <article class="role">
+          <div class="role-heading">
+            <div class="role-title">Senior Backend Engineer, <span class="company">Tecton</span></div>
+            <div class="role-meta">Aug 2023 - Jan 2026 | CA, US (Remote)</div>
+          </div>
+          <p class="project-name">Real-Time Feature Store for Production Machine Learning Systems</p>
+          <ul class="bullet-list">
+            <li>Owned the design and delivery of latency-critical feature retrieval services (Node.js, Python), driving p95 latency down from ~220ms to &lt;90ms, enabling real-time ML inference for high-throughput production systems.</li>
+            <li>Scaled event-driven ingestion architecture (Kafka + stream processing) to reliably process 50M+ events/day, increasing throughput from 20K to 60K events/sec while preserving ordering guarantees and fault tolerance.</li>
+            <li>Orchestrated distributed microservices on AWS EKS, ensuring 99.9% uptime under continuous production load with auto-scaling, rolling deployments, and failure isolation strategies.</li>
+            <li>Re-architected data access layer with Redis caching and feature materialization, cutting database read pressure by ~35% and stabilizing tail latency under peak traffic conditions.</li>
+            <li>Delivered unified API infrastructure for both online and offline feature access, powering 200+ production ML features used across multiple real-time decisioning systems.</li>
+            <li>Elevated observability standards by integrating OpenTelemetry, Prometheus, and Grafana, reducing mean-time-to-detection by ~40% and improving incident response workflows.</li>
+            <li>Drove backend architecture decisions and mentored engineers, leading design reviews and establishing standards for high-availability, performance optimization, and system resilience.</li>
+          </ul>
+        </article>
+
+        <article class="role">
+          <div class="role-heading">
+            <div class="role-title">Backend Engineer, <span class="company">Gatekeeper</span></div>
+            <div class="role-meta">Jun 2021 - Jul 2023 | London, UK (Remote)</div>
+          </div>
+          <p class="project-name">Vendor & Contract Lifecycle Management Platform (Enterprise SaaS, High-Volume Workflow System)</p>
+          <ul class="bullet-list">
+            <li>Architected and scaled Node.js microservices powering contract lifecycle workflows, reliably processing 12M+ events/month across enterprise tenants with strict consistency guarantees.</li>
+            <li>Re-engineered critical API paths and request handling logic, reducing p95 latency by ~40% (180ms -> ~105ms) and improving responsiveness of real-time approval workflows.</li>
+            <li>Designed and implemented event-driven processing pipelines (Kafka + distributed job queues) to support asynchronous contract approvals, ensuring exactly-once processing and failure recovery under peak load.</li>
+            <li>Introduced Redis-based caching and read-optimization strategies, cutting database pressure by ~35% and stabilizing performance during traffic spikes.</li>
+            <li>Refactored PostgreSQL schemas and indexing strategies for high-cardinality datasets, decreasing complex query execution time by ~35% and improving reporting performance.</li>
+            <li>Enforced security-first backend practices, including role-based access control, audit logging, and GDPR-compliant data handling across multi-tenant environments.</li>
+            <li>Collaborated with product and frontend teams to deliver low-latency APIs for analytics dashboards, enabling near real-time visibility into contract states and approval pipelines.</li>
+            <li>Contributed to platform scalability initiatives, enabling the system to support 2x customer growth without infrastructure bottlenecks or degradation in SLA (99.9% uptime).</li>
+          </ul>
+        </article>
+
+        <article class="role">
+          <div class="role-heading">
+            <div class="role-title">Software Engineer, <span class="company">Dreamix</span></div>
+            <div class="role-meta">Nov 2019 - Apr 2021 | Sofia, Bulgaria (Remote)</div>
+          </div>
+          <p class="project-name">Enterprise Data Processing &amp; Cloud-Based Analytics Systems</p>
+          <ul class="bullet-list">
+            <li>Architected high-throughput data pipelines processing 10M+ records/day using Node.js and Python, improving end-to-end data availability SLAs from hours to near real-time (&lt;5 minutes).</li>
+            <li>Engineered latency-optimized backend services for analytics and reporting workloads, reducing query response times by ~40% through query tuning, batching, and caching strategies.</li>
+            <li>Decomposed monolithic components into containerized microservices (Docker + Kubernetes), enabling independent scaling and increasing system throughput by ~2x under peak load.</li>
+            <li>Designed and implemented event-driven ingestion workflows (Kafka-based) to handle asynchronous data processing with fault tolerance and retry guarantees.</li>
+            <li>Established CI/CD pipelines (GitHub Actions + Docker) with automated testing and deployment gates, cutting release cycle time by ~55% and improving deployment reliability.</li>
+            <li>Integrated AWS services (S3, RDS, compute workloads) to support distributed data storage and processing, ensuring high durability and horizontal scalability.</li>
+            <li>Collaborated with product and data teams to define data contracts and service boundaries, improving system maintainability and reducing integration defects by ~30%.</li>
+          </ul>
+        </article>
+
+        <article class="role">
+          <div class="role-heading">
+            <div class="role-title">Full-Stack Engineer (Backend-Focused), <span class="company">Arcanys</span></div>
+            <div class="role-meta">Sep 2018 - Sep 2019 | Cebu City, Philippines (Onsite)</div>
+          </div>
+          <p class="project-name">Cloud-Based SaaS Platforms for Global Clients (Multi-tenant Web Applications)</p>
+          <ul class="bullet-list">
+            <li>Engineered backend services using Node.js (Express) powering multi-tenant SaaS platforms, handling thousands of daily user interactions with improved API response times by ~30%.</li>
+            <li>Designed and exposed RESTful APIs for real-time data synchronization, reducing client-side latency and improving UI responsiveness by ~25% across key user workflows.</li>
+            <li>Modeled relational databases (MySQL, PostgreSQL) and optimized complex queries, lowering average query execution time by ~35% under increasing data volumes.</li>
+            <li>Introduced basic caching and pagination strategies, improving data retrieval efficiency and reducing unnecessary database load during peak usage.</li>
+            <li>Delivered responsive frontend features using React + TypeScript, improving rendering performance and enhancing user experience across dashboards.</li>
+            <li>Participated in early-stage system architecture decisions, contributing to modular service design that supported future scalability of SaaS products.</li>
+            <li>Collaborated within distributed Agile teams, consistently delivering features on schedule and maintaining high code quality through peer reviews and testing practices.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="skills-title">
+      <h2 class="section-title" id="skills-title">Skills</h2>
+      <div class="skills-list">
+        <div class="skill-group"><h3 class="skill-title">Backend Engineering &amp; Core Languages</h3><p class="skill-items">Node.js (V8 Internals, Event Loop Optimization), TypeScript, JavaScript (ES6+), Python (FastAPI, AsyncIO), Java (Spring Boot), C# / .NET Core, RESTful API Design, GraphQL, gRPC, API Gateway Patterns, Backend Service Design, Modular Architecture</p></div>
+        <div class="skill-group"><h3 class="skill-title">Distributed Systems &amp; Architecture</h3><p class="skill-items">Microservices Architecture, Event-Driven Architecture, Domain-Driven Design (DDD), High-Throughput Systems, Low-Latency System Design, Stateless Services, Horizontal Scaling, Service Decomposition, Distributed Coordination, Fault-Tolerant Systems, Idempotency, Exactly-Once / At-Least-Once Processing</p></div>
+        <div class="skill-group"><h3 class="skill-title">Real-Time &amp; Trading System Concepts</h3><p class="skill-items">Low-Latency APIs (&lt;100ms p95), Real-Time Data Streaming, Order Lifecycle Processing, Event Sourcing, State Synchronization, Deterministic Processing, Concurrency Control, Backpressure Handling, High-Frequency Data Pipelines, Time-Series Data Processing</p></div>
+        <div class="skill-group"><h3 class="skill-title">Messaging, Streaming &amp; Caching</h3><p class="skill-items">Apache Kafka (Producers/Consumers, Partitioning, Consumer Groups), Redis (Caching, Pub/Sub, Streams), RabbitMQ, Asynchronous Job Queues, Message Brokers, Stream Processing, Event Replay, Dead Letter Queues (DLQ), Rate Limiting, Distributed Caching Strategies</p></div>
+        <div class="skill-group"><h3 class="skill-title">Databases &amp; Data Engineering</h3><p class="skill-items">PostgreSQL, MySQL, MongoDB, Redis, DynamoDB, Schema Design, Query Optimization, Indexing Strategies, ACID Transactions, Read/Write Scaling, Replication, Sharding, Data Partitioning, Time-Series Storage, Data Consistency Models</p></div>
+        <div class="skill-group"><h3 class="skill-title">Cloud &amp; Infrastructure (Production-Scale)</h3><p class="skill-items">AWS (EKS, EC2, S3, RDS, DynamoDB, Lambda, IAM), Kubernetes, Docker, Terraform, CI/CD Pipelines (GitHub Actions), Auto-Scaling Systems, Blue-Green Deployments, Canary Releases, High-Availability Architecture</p></div>
+        <div class="skill-group"><h3 class="skill-title">Performance Engineering &amp; Optimization</h3><p class="skill-items">Latency Reduction, Throughput Optimization, Profiling &amp; Benchmarking, Memory Optimization, CPU Optimization, Async Processing, Connection Pooling, Load Testing (k6, JMeter), Bottleneck Analysis, Caching Layers, API Performance Tuning</p></div>
+        <div class="skill-group"><h3 class="skill-title">Observability &amp; Reliability Engineering</h3><p class="skill-items">Prometheus, Grafana, OpenTelemetry, ELK Stack, Distributed Tracing, Metrics &amp; Alerting, Log Aggregation, SLO/SLI Design, Incident Response, Root Cause Analysis (RCA)</p></div>
+        <div class="skill-group"><h3 class="skill-title">Security &amp; Backend Integrity</h3><p class="skill-items">Secure API Design, Authentication &amp; Authorization (JWT, OAuth2), Encryption (TLS, Data-at-Rest), Rate Limiting, Input Validation, OWASP Best Practices, Secure Key Management, GDPR Compliance, Audit Logging</p></div>
+        <div class="skill-group"><h3 class="skill-title">Blockchain / Crypto</h3><p class="skill-items">Blockchain Fundamentals, Transaction Lifecycle, Wallet Integration Concepts, Mempool Monitoring, Blockchain Data Indexing, Web3 APIs, Crypto Exchange Architecture</p></div>
+        <div class="skill-group"><h3 class="skill-title">Frontend (Supporting Full-Stack Capability)</h3><p class="skill-items">React, TypeScript, REST Integration, API Consumption, State Management, Performance Optimization</p></div>
+        <div class="skill-group"><h3 class="skill-title">Engineering Leadership &amp; Collaboration</h3><p class="skill-items">Technical Leadership, System Design Ownership, Mentorship &amp; Code Reviews, Agile/Scrum, Cross-Functional Collaboration, Technical Decision-Making, Documentation &amp; Knowledge Sharing</p></div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="education-title">
+      <h2 class="section-title" id="education-title">Education</h2>
+      <div class="education-card">
+        <div><span class="education-school">University of the Philippines Diliman</span>, <span>B.S. in Computer Science</span></div>
+        <div class="education-meta">Aug 2014 - Jul 2018 | Quezon City, Philippines</div>
+      </div>
+      <p class="thesis"><strong>Thesis:</strong> Development of a Multithreaded File Processing System Using C++ and POSIX Threads</p>
+    </section>
+
+    <section class="section" aria-labelledby="certificates-title">
+      <h2 class="section-title" id="certificates-title">Certificates</h2>
+      <ul class="cert-list">
+        <li>AWS Certified Solutions Architect - Professional (Jun 2021)</li>
+        <li>Certified Kubernetes Administrator (CKA) (Nov 2021)</li>
+        <li>AWS Certified Machine Learning - Specialty (Aug 2023)</li>
+        <li>Snowflake SnowPro Core Certification (Mar 2024)</li>
+      </ul>
+    </section>
+  </main>
+
+  <script type="application/json" id="resume-data">
+  {
+    "note": "This JSON block is sample data for a future resume generator. The visible resume above is static so PDF export tools do not fail when JavaScript is disabled."
+  }
+  </script>
+</body>
+</html>

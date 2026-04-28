@@ -29,10 +29,8 @@ let lastTemplateHtml = "";
 let lastTemplateFallbackContact = {};
 const THEME_KEY = "popupThemePreference";
 const TEMPLATE_CANDIDATE_PATHS = [
-  "template/template-structured.html",
-  "src/template/template-structured.html",
-  "template/template1.html",
-  "src/template/template1.html"
+  "template/template.html",
+  "src/template/template.html"
 ];
 const RESUME_STYLE_TUNING = {
   pagePadding: "8mm 10mm",
@@ -325,7 +323,7 @@ function extractContactFallbackFromTemplate(templateHtml) {
 async function loadTemplateGuideFromProjectTemplate() {
   const templateHtml = await loadTemplateHtmlFromExtension();
   if (!templateHtml) {
-    throw new Error("Template file not found. Put template1.html under extension/template/.");
+    throw new Error("Template file not found. Put template.html under extension/template/.");
   }
   return buildTemplateGuide(templateHtml);
 }
@@ -1005,6 +1003,200 @@ function applyExactTemplateContentSwap(templateHtml, resume) {
   }
 }
 
+function applyOriginalTemplateContentSwap(templateHtml, resume) {
+  if (!templateHtml) {
+    return "";
+  }
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(templateHtml, "text/html");
+    if (!doc.querySelector("main.page .resume-header")) {
+      return "";
+    }
+    const fullName = normalizeText(resume?.full_name || "Candidate Name");
+    const headline = normalizeText(resume?.headline || "");
+    const summary = normalizeText(resume?.summary || "");
+    const contact = resume?.contact || {};
+    const nameEl = doc.querySelector(".resume-header .name");
+    const headlineEl = doc.querySelector(".resume-header .headline");
+    if (nameEl) {
+      nameEl.textContent = fullName;
+    }
+    if (headlineEl) {
+      headlineEl.textContent = headline;
+    }
+    const contactList = doc.querySelector(".resume-header .contact-list");
+    if (contactList) {
+      contactList.innerHTML = "";
+      const entries = [
+        { icon: "✉", text: normalizeText(contact.email), href: contact.email ? `mailto:${normalizeText(contact.email)}` : "" },
+        {
+          icon: "in",
+          iconClass: "linkedin-icon",
+          text: normalizeText(contact.linkedin).replace(/^https?:\/\//i, ""),
+          href: normalizeText(contact.linkedin)
+        },
+        {
+          icon: "☎",
+          text: formatPhoneForDisplay(contact.phone),
+          href: normalizeText(contact.phone) ? `tel:${normalizeText(contact.phone)}` : ""
+        },
+        { icon: "📍", text: normalizeText(contact.address), href: "" }
+      ];
+      entries.forEach((entry) => {
+        if (!entry.text) {
+          return;
+        }
+        const li = doc.createElement("li");
+        const icon = doc.createElement("span");
+        icon.className = `contact-icon${entry.iconClass ? ` ${entry.iconClass}` : ""}`;
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = entry.icon;
+        li.appendChild(icon);
+        if (entry.href) {
+          const a = doc.createElement("a");
+          a.setAttribute("href", entry.href);
+          a.textContent = entry.text;
+          li.appendChild(a);
+        } else {
+          const span = doc.createElement("span");
+          span.textContent = entry.text;
+          li.appendChild(span);
+        }
+        contactList.appendChild(li);
+      });
+    }
+    const profileSection = doc.querySelector("section[aria-labelledby='profile-title']");
+    if (profileSection) {
+      profileSection.querySelectorAll(".profile-text").forEach((node) => node.remove());
+      if (summary) {
+        const p = doc.createElement("p");
+        p.className = "profile-text";
+        p.textContent = summary;
+        profileSection.appendChild(p);
+      }
+    }
+    const experienceList = doc.querySelector(".experience-list");
+    if (experienceList) {
+      experienceList.innerHTML = "";
+      (resume?.experience || []).forEach((item) => {
+        const article = doc.createElement("article");
+        article.className = "role";
+        const heading = doc.createElement("div");
+        heading.className = "role-heading";
+        const titleWrap = doc.createElement("div");
+        titleWrap.className = "role-title";
+        titleWrap.textContent = normalizeText(item?.title || "");
+        if (normalizeText(item?.company)) {
+          const companyEl = doc.createElement("span");
+          companyEl.className = "company";
+          companyEl.textContent = `, ${normalizeText(item.company)}`;
+          titleWrap.appendChild(companyEl);
+        }
+        const meta = doc.createElement("div");
+        meta.className = "role-meta";
+        const metaParts = [formatConsistentDateRange(item?.dates || ""), normalizeText(item?.location || "")].filter(Boolean);
+        meta.textContent = metaParts.join(" | ");
+        heading.appendChild(titleWrap);
+        heading.appendChild(meta);
+        article.appendChild(heading);
+        const bullets = Array.isArray(item?.bullets) ? item.bullets : [];
+        if (bullets.length) {
+          const ul = doc.createElement("ul");
+          ul.className = "bullet-list";
+          bullets.forEach((bullet) => {
+            const li = doc.createElement("li");
+            li.textContent = normalizeText(bullet);
+            ul.appendChild(li);
+          });
+          article.appendChild(ul);
+        }
+        experienceList.appendChild(article);
+      });
+    }
+    const skillsList = doc.querySelector(".skills-list");
+    if (skillsList) {
+      skillsList.innerHTML = "";
+      const skillLines = Array.isArray(resume?.skills) ? resume.skills : [];
+      skillLines.forEach((line) => {
+        const text = normalizeText(line);
+        if (!text) {
+          return;
+        }
+        const group = doc.createElement("div");
+        group.className = "skill-group";
+        const title = doc.createElement("h3");
+        title.className = "skill-title";
+        const items = doc.createElement("p");
+        items.className = "skill-items";
+        const splitAt = text.indexOf(":");
+        if (splitAt > 0) {
+          title.textContent = text.slice(0, splitAt).trim();
+          items.textContent = text.slice(splitAt + 1).trim();
+        } else {
+          title.textContent = "Core Skills";
+          items.textContent = text;
+        }
+        group.appendChild(title);
+        group.appendChild(items);
+        skillsList.appendChild(group);
+      });
+    }
+    const educationSection = doc.querySelector("section[aria-labelledby='education-title']");
+    if (educationSection) {
+      educationSection.querySelectorAll(".education-card, .thesis").forEach((node) => node.remove());
+      (resume?.education || []).forEach((item, index) => {
+        const card = doc.createElement("div");
+        card.className = "education-card";
+        const left = doc.createElement("div");
+        const school = doc.createElement("span");
+        school.className = "education-school";
+        school.textContent = normalizeText(item?.school || "");
+        left.appendChild(school);
+        if (normalizeText(item?.degree)) {
+          const degree = doc.createElement("span");
+          degree.textContent = `, ${normalizeText(item.degree)}`;
+          left.appendChild(degree);
+        }
+        const right = doc.createElement("div");
+        right.className = "education-meta";
+        right.textContent = formatConsistentDateRange(item?.dates || "");
+        card.appendChild(left);
+        card.appendChild(right);
+        educationSection.appendChild(card);
+        if (normalizeText(item?.details) && index === 0) {
+          const thesis = doc.createElement("p");
+          thesis.className = "thesis";
+          thesis.textContent = normalizeText(item.details);
+          educationSection.appendChild(thesis);
+        }
+      });
+    }
+    const certSection = doc.querySelector("section[aria-labelledby='certificates-title']");
+    if (certSection) {
+      let certList = certSection.querySelector(".cert-list");
+      if (!certList) {
+        certList = doc.createElement("ul");
+        certList.className = "cert-list";
+        certSection.appendChild(certList);
+      }
+      certList.innerHTML = "";
+      (resume?.certifications || []).forEach((item) => {
+        const li = doc.createElement("li");
+        li.textContent = normalizeText(item);
+        certList.appendChild(li);
+      });
+    }
+    const scriptData = doc.getElementById("resume-data");
+    if (scriptData) {
+      scriptData.textContent = JSON.stringify({ source: "tailored_resume", generated_at: new Date().toISOString() }, null, 2);
+    }
+    return `<!doctype html>\n${doc.documentElement.outerHTML}`;
+  } catch (_error) {
+    return "";
+  }
+}
+
 function applyTemplateBindings(templateHtml, resume, resumeBodyHtml) {
   const html = String(templateHtml || "");
   if (!html) {
@@ -1076,6 +1268,14 @@ function applyTemplateBindings(templateHtml, resume, resumeBodyHtml) {
       `<!-- TAILORED_RESUME_START -->\n${resumeBodyHtml}\n<!-- TAILORED_RESUME_END -->`
     );
     return bound;
+  }
+  const originalTemplateSwap = applyOriginalTemplateContentSwap(html, resume);
+  if (originalTemplateSwap) {
+    return originalTemplateSwap;
+  }
+  const fixedTemplateSwap = applyExactTemplateContentSwap(html, resume);
+  if (fixedTemplateSwap) {
+    return fixedTemplateSwap;
   }
   return "";
 }
