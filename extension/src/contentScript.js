@@ -24,6 +24,9 @@
     "about the role"
   ];
   let hasAutoScraped = false;
+  let autoScrapeInFlight = false;
+  let lastObservedUrl = window.location.href;
+  const MIN_DESCRIPTION_LENGTH = 250;
 
   function getHostname() {
     return window.location.hostname.replace(/^www\./, "");
@@ -66,6 +69,31 @@
     };
   }
 
+  function hasSufficientDescription(payload, minLength = MIN_DESCRIPTION_LENGTH) {
+    const text = cleanText(payload?.job_description || "");
+    return text.length >= Math.max(80, Number(minLength) || MIN_DESCRIPTION_LENGTH);
+  }
+
+  async function waitForJobDescription(options = {}) {
+    const timeoutMs = Math.max(2000, Number(options.timeoutMs) || 12000);
+    const intervalMs = Math.max(150, Number(options.intervalMs) || 350);
+    const minLength = Math.max(80, Number(options.minLength) || MIN_DESCRIPTION_LENGTH);
+    const deadline = Date.now() + timeoutMs;
+
+    let bestPayload = extractJobDescription();
+    while (Date.now() < deadline) {
+      const payload = extractJobDescription();
+      if (hasSufficientDescription(payload, minLength)) {
+        return payload;
+      }
+      if ((payload?.job_description || "").length > (bestPayload?.job_description || "").length) {
+        bestPayload = payload;
+      }
+      await sleep(intervalMs);
+    }
+    return bestPayload;
+  }
+
   function isKnownJobSite(hostname) {
     return Object.keys(SITE_SELECTORS).some((site) => hostname.includes(site));
   }
@@ -87,32 +115,48 @@
   }
 
   function autoDetectAndScrape() {
-    if (hasAutoScraped) {
+    if (hasAutoScraped || autoScrapeInFlight) {
       return;
     }
     const hostname = getHostname();
     if (!hasJobSignals(hostname)) {
       return;
     }
-    const payload = extractJobDescription();
-    if (!payload.job_description || payload.job_description.length < 250) {
-      return;
-    }
-
-    hasAutoScraped = true;
-    chrome.runtime.sendMessage({
-      type: "CACHE_DETECTED_JOB_DESCRIPTION",
-      payload
-    });
+    autoScrapeInFlight = true;
+    waitForJobDescription({ timeoutMs: 15000, intervalMs: 400, minLength: MIN_DESCRIPTION_LENGTH })
+      .then((payload) => {
+        if (!hasSufficientDescription(payload, MIN_DESCRIPTION_LENGTH)) {
+          return;
+        }
+        hasAutoScraped = true;
+        chrome.runtime.sendMessage({
+          type: "CACHE_DETECTED_JOB_DESCRIPTION",
+          payload
+        });
+      })
+      .finally(() => {
+        autoScrapeInFlight = false;
+      });
   }
 
   function runAutoDetectionWithRetries() {
-    const retryDelaysMs = [0, 1000, 2500, 5000];
+    const retryDelaysMs = [0, 1200, 3000, 6000, 10000, 15000];
     for (const delay of retryDelaysMs) {
       window.setTimeout(() => {
         autoDetectAndScrape();
       }, delay);
     }
+  }
+
+  function installUrlChangeWatcher() {
+    window.setInterval(() => {
+      if (window.location.href === lastObservedUrl) {
+        return;
+      }
+      lastObservedUrl = window.location.href;
+      hasAutoScraped = false;
+      runAutoDetectionWithRetries();
+    }, 1000);
   }
 
   function sleep(ms) {
@@ -509,11 +553,19 @@
         sendResponse({ ok: true });
       }
       if (message?.type === "EXTRACT_JOB_DESCRIPTION") {
-        const payload = extractJobDescription();
-        sendResponse({
-          ok: Boolean(payload.job_description),
-          payload
-        });
+        waitForJobDescription({
+          timeoutMs: Number(message.timeoutMs) || 12000,
+          intervalMs: 300,
+          minLength: Number(message.minLength) || MIN_DESCRIPTION_LENGTH
+        })
+          .then((payload) => {
+            sendResponse({
+              ok: Boolean(cleanText(payload?.job_description || "")),
+              payload
+            });
+          })
+          .catch((error) => sendResponse({ ok: false, error: error.message }));
+        return true;
       }
       if (message?.type === "RUN_CHATGPT_EXTRACTION") {
         const jobDescription = cleanText(message.jobDescription || "");
@@ -538,5 +590,6 @@
       return true;
     });
     runAutoDetectionWithRetries();
+    installUrlChangeWatcher();
   }
 })();

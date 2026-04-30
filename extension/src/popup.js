@@ -1549,6 +1549,25 @@ async function loadCachedExtraction() {
   });
 }
 
+function applyExtractedPayload(payload, successMessage = "Job description extracted.") {
+  if (!payload || !descriptionEl) {
+    return false;
+  }
+  const text = normalizeText(payload.job_description || "");
+  if (!text) {
+    return false;
+  }
+  lastPayload = payload;
+  descriptionEl.value = text;
+  updateCharCount();
+  setStatus(successMessage, "success");
+  return true;
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function extractFactsWithChatGpt() {
   console.log("extractFactsWithChatGpt");
   const tabId = await getActiveTabId();
@@ -1579,16 +1598,55 @@ async function extractFactsWithChatGpt() {
   });
 }
 
-async function extractDescription() {
+async function extractDescription(options = {}) {
   const tabId = await getActiveTabId();
-  const response = await chrome.tabs.sendMessage(tabId, { type: "EXTRACT_JOB_DESCRIPTION" });
+  const response = await chrome.tabs.sendMessage(tabId, {
+    type: "EXTRACT_JOB_DESCRIPTION",
+    timeoutMs: Number(options.timeoutMs) || 15000,
+    minLength: Number(options.minLength) || 250
+  });
   if (!response?.ok) {
     throw new Error("Could not extract job description from this page.");
   }
-  lastPayload = response.payload;
-  descriptionEl.value = lastPayload.job_description;
-  updateCharCount();
-  setStatus("Job description extracted.", "success");
+  const applied = applyExtractedPayload(response.payload, "Job description extracted after panel load.");
+  if (!applied) {
+    throw new Error("Could not extract job description from this page.");
+  }
+}
+
+async function warmUpDescriptionFromPanelLoad() {
+  if (!descriptionEl) {
+    return;
+  }
+  try {
+    const cached = await loadCachedExtraction();
+    if (applyExtractedPayload(cached, "Detected job post and prefilled description.")) {
+      return;
+    }
+  } catch (_error) {
+    // Ignore and continue with active extraction fallback.
+  }
+
+  try {
+    setStatus("Waiting for job panel to load...", "info");
+    await extractDescription({ timeoutMs: 18000, minLength: 220 });
+    return;
+  } catch (_error) {
+    // Fallback to cache polling below.
+  }
+
+  const pollStart = Date.now();
+  while (Date.now() - pollStart < 12000) {
+    try {
+      const cached = await loadCachedExtraction();
+      if (applyExtractedPayload(cached, "Detected job post and prefilled description.")) {
+        return;
+      }
+    } catch (_error) {
+      // Keep polling.
+    }
+    await delay(600);
+  }
 }
 
 async function submitDescription() {
@@ -2014,19 +2072,17 @@ if (apiBaseEl) {
 }
 
 if (descriptionEl) {
-  loadCachedExtraction()
+  warmUpDescriptionFromPanelLoad()
+    .then(() => loadCachedExtraction())
     .then((payload) => {
-      if (!payload?.job_description) {
-        return;
+      if (payload?.extracted_facts) {
+        lastExtractedFacts = normalizeFacts(payload.extracted_facts || {});
+        renderFacts(lastExtractedFacts);
       }
-      lastPayload = payload;
-      descriptionEl.value = payload.job_description;
-      lastExtractedFacts = normalizeFacts(payload.extracted_facts || {});
-      updateCharCount();
-      renderFacts(lastExtractedFacts);
-      setStatus("Auto-detected job post and prefilled description.", "success");
     })
-    .catch((error) => setStatus(error.message, "error"));
+    .catch((_error) => {
+      // Keep popup usable even if extraction isn't available on current tab.
+    });
 }
 
 if (jobsTableBodyEl) {

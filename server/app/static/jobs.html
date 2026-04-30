@@ -7,119 +7,207 @@
     <style>
       :root {
         color-scheme: light;
+        --bg-a: #f4f2ff;
+        --bg-b: #fef6f8;
+        --bg-c: #eef6ff;
+        --card: rgba(255, 255, 255, 0.86);
+        --line: #e6e6f2;
+        --text: #171726;
+        --muted: #6d6f85;
+        --primary-a: #7c3aed;
+        --primary-b: #2563eb;
+        --danger-a: #ef4444;
+        --success-a: #16a34a;
       }
       body {
         margin: 0;
-        background: #f6f8fc;
-        color: #111827;
-        font-family: "Segoe UI", Arial, sans-serif;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 15% 0%, var(--bg-a) 0%, transparent 45%),
+          radial-gradient(circle at 85% 0%, var(--bg-b) 0%, transparent 45%),
+          linear-gradient(180deg, #f7f8ff 0%, var(--bg-c) 100%);
+        color: var(--text);
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
       }
       .container {
-        max-width: 1100px;
-        margin: 20px auto;
-        padding: 0 14px;
+        max-width: 1160px;
+        margin: 28px auto;
+        padding: 0 16px;
       }
       .card {
-        background: #fff;
-        border: 1px solid #d8dce6;
-        border-radius: 12px;
-        padding: 14px;
+        background: var(--card);
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        border-radius: 18px;
+        padding: 20px;
+        box-shadow:
+          0 20px 40px rgba(64, 44, 127, 0.08),
+          0 2px 8px rgba(20, 26, 40, 0.05);
+        backdrop-filter: blur(10px);
       }
       h2 {
-        margin: 0 0 10px;
-        font-size: 20px;
+        margin: 0 0 6px;
+        font-size: 28px;
+        letter-spacing: -0.02em;
+        font-weight: 700;
       }
       .sub {
-        color: #6b7280;
-        font-size: 12px;
-        margin-bottom: 12px;
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 14px;
       }
       .row {
         display: flex;
-        gap: 8px;
+        gap: 10px;
         flex-wrap: wrap;
       }
+      .toolbar-card {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+      }
       input, select, button {
-        border: 1px solid #d8dce6;
-        border-radius: 8px;
-        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 11px;
         font-size: 13px;
+        transition: all 0.18s ease;
       }
       input, select {
         background: #fff;
+        color: var(--text);
+      }
+      input:focus, select:focus {
+        outline: none;
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
       }
       button {
         cursor: pointer;
         background: #fff;
+        color: #23263a;
+        font-weight: 600;
+      }
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 14px rgba(58, 65, 94, 0.12);
       }
       .primary {
-        background: #2563eb;
-        border-color: #2563eb;
+        background: linear-gradient(135deg, var(--primary-a) 0%, var(--primary-b) 100%);
+        border-color: transparent;
         color: #fff;
       }
       .danger {
         border-color: #fecaca;
         color: #b91c1c;
+        background: #fff5f5;
       }
       .section {
         margin-top: 12px;
       }
       .table-wrap {
-        margin-top: 12px;
-        border: 1px solid #e5e7eb;
-        border-radius: 10px;
+        margin-top: 14px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
         overflow: auto;
         max-height: 560px;
         background: #fff;
       }
       table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: separate;
+        border-spacing: 0;
         min-width: 900px;
       }
       th, td {
         text-align: left;
-        padding: 8px;
-        border-bottom: 1px solid #f0f0f0;
+        padding: 11px 10px;
+        border-bottom: 1px solid #f2f3f9;
         vertical-align: top;
         font-size: 13px;
       }
       th {
         position: sticky;
         top: 0;
-        background: #fff;
+        background: #f9f9ff;
+        color: #575b73;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      tbody tr:hover td {
+        background: #fbfbff;
       }
       .tiny {
-        padding: 4px 8px;
-        border-radius: 6px;
+        padding: 6px 10px;
+        border-radius: 8px;
         font-size: 12px;
+        margin-right: 4px;
       }
       .status {
         margin-top: 10px;
-        border: 1px solid #d8dce6;
-        border-radius: 8px;
-        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px 12px;
         color: #4b5563;
         font-size: 12px;
         white-space: pre-wrap;
+        background: #fff;
+      }
+      .status.success {
+        color: #166534;
+        background: #effcf4;
+        border-color: #b7e7c6;
+      }
+      .status.error {
+        color: #b91c1c;
+        background: #fff1f2;
+        border-color: #fecdd3;
+      }
+      .status.info {
+        color: #1d4ed8;
+        background: #eff6ff;
+        border-color: #bfdbfe;
       }
       .pager {
-        margin-top: 10px;
+        margin-top: 12px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        padding: 8px 0 2px;
       }
       .muted {
-        color: #6b7280;
+        color: var(--muted);
         font-size: 12px;
       }
       .inline-input {
         width: 100%;
         box-sizing: border-box;
-        padding: 5px 6px;
-        border: 1px solid #d8dce6;
-        border-radius: 6px;
+        padding: 7px 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
         font-size: 12px;
+      }
+      .meta-badge {
+        display: inline-block;
+        padding: 4px 9px;
+        border-radius: 999px;
+        border: 1px solid #dbe2ff;
+        background: #f5f7ff;
+        color: #49507a;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .pager button:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+        transform: none;
+        box-shadow: none;
+      }
+      @media (max-width: 860px) {
+        h2 { font-size: 24px; }
+        .card { padding: 14px; border-radius: 14px; }
       }
     </style>
   </head>
@@ -129,7 +217,7 @@
         <h2>Jobs Manager</h2>
         <div class="sub">Manage saved jobs with add, edit, delete, filter, and sort.</div>
 
-        <div class="section row">
+        <div class="section toolbar-card row">
           <input id="searchInput" type="text" placeholder="Search title/company/description..." style="min-width:260px;" />
           <input id="companyFilterInput" type="text" placeholder="Filter exact company..." style="min-width:220px;" />
           <select id="sortBySelect">
@@ -145,7 +233,7 @@
           <button id="resetBtn">Reset</button>
         </div>
 
-        <div class="section row">
+        <div class="section toolbar-card row">
           <input id="titleInput" type="text" placeholder="Title" style="min-width:220px;" />
           <input id="companyInput" type="text" placeholder="Company" style="min-width:180px;" />
           <input id="locationInput" type="text" placeholder="Location" style="min-width:160px;" />
@@ -173,12 +261,12 @@
         </div>
 
         <div class="pager">
-          <button id="prevBtn">Prev</button>
-          <span id="pageInfo" class="muted">Page 1 / 1</span>
-          <button id="nextBtn">Next</button>
+          <button id="prevBtn">← Prev</button>
+          <span id="pageInfo" class="meta-badge">Page 1 / 1</span>
+          <button id="nextBtn">Next →</button>
         </div>
 
-        <div id="status" class="status">Ready.</div>
+        <div id="status" class="status info">Ready.</div>
       </div>
     </div>
 
@@ -223,7 +311,7 @@
 
       function setStatus(message, type) {
         el.status.textContent = message;
-        el.status.style.color = type === "error" ? "#b91c1c" : "#4b5563";
+        el.status.className = `status ${type || "info"}`;
       }
 
       async function request(path, options = {}) {
@@ -353,7 +441,7 @@
                 });
                 activeEditId = "";
                 await loadJobs();
-                setStatus("Job updated.");
+                setStatus("Job updated.", "success");
               } catch (error) {
                 setStatus(error.message, "error");
               }
@@ -366,7 +454,7 @@
                 await request(`/api/v1/jobs/${item.job_id}`, { method: "DELETE" });
                 activeEditId = "";
                 await loadJobs();
-                setStatus("Job deleted.");
+                setStatus("Job deleted.", "success");
               } catch (error) {
                 setStatus(error.message, "error");
               }
@@ -410,7 +498,7 @@
         try {
           currentPage = 1;
           await loadJobs();
-          setStatus("Filters applied.");
+          setStatus("Filters applied.", "success");
         } catch (error) {
           setStatus(error.message, "error");
         }
@@ -424,7 +512,7 @@
           el.sortOrderSelect.value = "desc";
           currentPage = 1;
           await loadJobs();
-          setStatus("Filters reset.");
+          setStatus("Filters reset.", "success");
         } catch (error) {
           setStatus(error.message, "error");
         }
@@ -435,7 +523,7 @@
           await addJob();
           currentPage = 1;
           await loadJobs();
-          setStatus("Job added.");
+          setStatus("Job added.", "success");
         } catch (error) {
           setStatus(error.message, "error");
         }
@@ -461,7 +549,7 @@
           try {
             currentPage = 1;
             await loadJobs();
-            setStatus("Filters applied.");
+            setStatus("Filters applied.", "success");
           } catch (error) {
             setStatus(error.message, "error");
           }
